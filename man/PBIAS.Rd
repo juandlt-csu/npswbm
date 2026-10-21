@@ -2,24 +2,46 @@
 % Please edit documentation in R/Objective_Functions.R
 \name{PBIAS}
 \alias{PBIAS}
-\title{Percent Bias (PBIAS)}
+\title{Percent bias (PBIAS)}
 \usage{
 PBIAS(obs, sim)
 }
 \arguments{
-\item{obs}{Vector of observed values}
+\item{obs}{Numeric vector. Observed values, e.g. daily streamflow at a
+gage. Pairs where \code{obs} or \code{sim} is \code{NA} are dropped first. Required.}
 
-\item{sim}{Vector of simulated/modeled values}
+\item{sim}{Numeric vector. Simulated values, the same length as \code{obs}.
+Required.}
 }
 \value{
-Percent bias (percentage)
-
-PBIAS Interpretation (Streamflow)
-< ±10%: Very Good.
-±10% to ±15%: Good.
-±15% to ±25%: Satisfactory.
-> ±25%: Unsatisfactory.
+A percentage (can be negative). Returns \code{1e10} (a penalty for
+optimizers) when no pairs are left or the observations sum to 0.
 }
 \description{
-Percent Bias (PBIAS)
+Calculates the percent bias: \code{100 * sum(obs - sim) / sum(obs)}.
+Positive values mean the model underestimates, negative values that it
+overestimates. For streamflow, within 10\% is very good; 10-15\% good;
+15-25\% satisfactory; beyond 25\% unsatisfactory (Moriasi et al. 2007).
+
+The metrics are summarized at
+\url{https://www.hec.usace.army.mil/confluence/hmsdocs/hmstrm/calibration/calibration-summary-statistics}.
+}
+\examples{
+obs <- c(2.1, 3.4, 8.0, 5.2, 3.3, NA, 2.4)
+sim <- c(2.4, 3.1, 7.2, 5.9, 3.0, 2.8, 2.2)
+PBIAS(obs, sim)
+}
+\references{
+Moriasi, D.N. et al. (2007). Model evaluation guidelines for systematic
+quantification of accuracy in watershed simulations. Transactions of the
+ASABE, 50(3), 885-900.
+
+Legates, D.R., and McCabe, G.J. (1999). Evaluating the use of
+"goodness-of-fit" measures in hydrologic and hydroclimatic model
+validation. Water Resources Research, 35(1), 233-241.
+}
+\seealso{
+The other fit metrics: \code{\link[=NSE]{NSE()}}, \code{\link[=RSR]{RSR()}}, \code{\link[=PBIAS]{PBIAS()}}, \code{\link[=COD]{COD()}},
+\code{\link[=SSE]{SSE()}}, \code{\link[=RMSE]{RMSE()}}, \code{\link[=MAE]{MAE()}}; \code{\link[=test_model_fit]{test_model_fit()}}, which uses them to score
+a routing run.
 }

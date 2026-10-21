@@ -2,8 +2,7 @@
 % Please edit documentation in R/test_model_fit.R
 \name{test_model_fit}
 \alias{test_model_fit}
-\title{test_model_fit run model for calibration optimization function or on set
-of fitted parameters}
+\title{Score a model run against observations}
 \usage{
 test_model_fit(
   params,
@@ -19,32 +18,105 @@ test_model_fit(
 )
 }
 \arguments{
-\item{params}{Vector containing parameters to optimize, should be only arguments in calibration function}
+\item{params}{Numeric vector. The parameters being fitted. Not used by
+the function: build \code{calibration_function_args} from them in a wrapper
+(see the example). Required.}
 
-\item{calibration_function}{function to optimize, only inputs should be params}
+\item{calibration_function}{Function. The model to run, e.g.
+\code{\link[=runoff_routing_gw]{runoff_routing_gw()}}. Required.}
 
-\item{calibration_function_args}{arguments for calibration function}
+\item{calibration_function_args}{List. The arguments for
+\code{calibration_function}, passed with \code{\link[=do.call]{do.call()}}. Required.}
 
-\item{result_col}{string column name of result if calibration function returns multiple columns}
+\item{result_col}{String or \code{NULL}. The output column to score.
+\itemize{
+\item A string, e.g. \code{"Q_tot"}: that column.
+\item \code{NULL}: the last column.
+}
 
-\item{obs_vals}{array of observations, should be same length as model output}
+Default: \code{NULL}.}
 
-\item{date}{array of dates, should be same length as model output and observations. Optional}
+\item{obs_vals}{Numeric vector. The observations, the same length as the
+model output (use \code{NA} for days without one). Required.}
 
-\item{obj_fun}{The objective function to be minimized/maximized (e.g., NSE, SSE, MAE).}
+\item{date}{Date vector or \code{NULL}. The dates of the observations, the
+same length as \code{obs_vals}; needed for \code{time_ag}. Stops with an error if
+the lengths differ. Default: \code{NULL}.}
 
-\item{return_dat}{Logical indicating whether to return the modeled data.}
+\item{obj_fun}{Function. The objective function, called as
+\code{obj_fun(sim = , obs = )}: one of \code{\link[=NSE]{NSE()}}, \code{\link[=RSR]{RSR()}}, \code{\link[=PBIAS]{PBIAS()}}, \code{\link[=COD]{COD()}},
+\code{\link[=SSE]{SSE()}}, \code{\link[=RMSE]{RMSE()}} or \code{\link[=MAE]{MAE()}}. Required.}
 
-\item{silence}{Logical indicating whether to silence return of obj result}
+\item{return_dat}{Logical. What to return.
+\itemize{
+\item \code{TRUE}: a data frame of the dates, observations and full model output.
+\item \code{FALSE}: the score.
+}
 
-\item{time_ag}{Character string specifying the time aggregation ("Daily", "Monthly", or "Annual").}
+Default: \code{FALSE}.}
 
-\item{...}{Additional arguments passed to the objective function.}
+\item{silence}{Logical. Whether to stay quiet.
+\itemize{
+\item \code{TRUE}: prints nothing.
+\item \code{FALSE}: prints "Current Fit: ..." each call (and a message when it
+returns a penalty).
+}
+
+Default: \code{FALSE}.}
+
+\item{time_ag}{String or \code{NULL}. The time step to score at.
+\itemize{
+\item \code{"Monthly"} or \code{"Annual"}: averages observations and model output by
+month or year first (needs \code{date}).
+\item \code{"Daily"} or \code{NULL}: scores each day.
+}
+
+Default: \code{NULL}.}
 }
 \value{
-Optimized parameters and objective function value.
+The score (a number), or a data frame when \code{return_dat = TRUE}.
 }
 \description{
-test_model_fit run model for calibration optimization function or on set
-of fitted parameters
+Runs a model (usually a routing function) and scores its output against
+observations with an objective function such as \code{\link[=NSE]{NSE()}}. Built to be the
+function an optimizer like \code{\link[stats:optim]{stats::optim()}} calls; see the example.
+
+Steps: runs \code{calibration_function} with \code{calibration_function_args},
+takes the \code{result_col} column of its output, drops days with no
+observation, optionally averages to months or years, and calls
+\code{obj_fun(sim = ..., obs = ...)}. If the output length doesn't match the
+observations, or has non-finite values, it returns a penalty instead
+(\code{-9999} when \code{obj_fun} is \code{\link[=NSE]{NSE()}}, otherwise \code{1e10}).
+}
+\examples{
+set.seed(1)
+runoff <- data.frame(date = seq(as.Date("2021-01-01"), by = "day", length.out = 120),
+                     runoff_in_wbm = pmax(0, rnorm(120, 0.2, 0.4)))
+# "Observed" flow: the routed runoff with known parameters, plus noise
+obs <- runoff_routing_gw(runoff, tau_q = 3, tau_s = 25, vs = 0.5)$Q_tot *
+  runif(120, 0.9, 1.1)
+
+# Score one set of parameters
+test_model_fit(params = NULL,
+               calibration_function = runoff_routing_gw,
+               calibration_function_args = list(df = runoff, tau_q = 2,
+                                                tau_s = 20, vs = 0.4),
+               result_col = "Q_tot", obs_vals = obs, obj_fun = NSE)
+
+# Fit tau_q, tau_s and vs with optim(), minimizing 1 - NSE
+fit_fn <- function(p) {
+  1 - test_model_fit(params = p,
+                     calibration_function = runoff_routing_gw,
+                     calibration_function_args = list(df = runoff, tau_q = p[1],
+                                                      tau_s = p[2], vs = p[3]),
+                     result_col = "Q_tot", obs_vals = obs, obj_fun = NSE,
+                     silence = TRUE)
+}
+fit <- optim(c(2, 20, 0.4), fit_fn, method = "L-BFGS-B",
+             lower = c(0.1, 1, 0), upper = c(20, 200, 1))
+round(fit$par, 2)
+}
+\seealso{
+The objective functions, e.g. \code{\link[=NSE]{NSE()}}; \code{\link[=runoff_routing_gw]{runoff_routing_gw()}}
+and \code{\link[=runoff_routing_snow_fun]{runoff_routing_snow_fun()}}.
 }

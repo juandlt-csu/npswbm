@@ -2,18 +2,44 @@
 % Please edit documentation in R/Objective_Functions.R
 \name{SSE}
 \alias{SSE}
-\title{Sum of Squared Errors (SSE)}
+\title{Sum of squared errors (SSE)}
 \usage{
 SSE(obs, sim)
 }
 \arguments{
-\item{obs}{Vector of observed values}
+\item{obs}{Numeric vector. Observed values, e.g. daily streamflow at a
+gage. Pairs where \code{obs} or \code{sim} is \code{NA} are dropped first. Required.}
 
-\item{sim}{Vector of simulated/modeled values}
+\item{sim}{Numeric vector. Simulated values, the same length as \code{obs}.
+Required.}
 }
 \value{
-Sum of squares. Lower is better.
+A number of 0 or more, in squared data units (lower is better).
+Returns \code{1e10} (a penalty for optimizers) when no pairs are left.
 }
 \description{
-Sum of Squared Errors (SSE)
+Calculates the sum of squared differences between simulated and
+observed values.
+
+The metrics are summarized at
+\url{https://www.hec.usace.army.mil/confluence/hmsdocs/hmstrm/calibration/calibration-summary-statistics}.
+}
+\examples{
+obs <- c(2.1, 3.4, 8.0, 5.2, 3.3, NA, 2.4)
+sim <- c(2.4, 3.1, 7.2, 5.9, 3.0, 2.8, 2.2)
+SSE(obs, sim)
+}
+\references{
+Moriasi, D.N. et al. (2007). Model evaluation guidelines for systematic
+quantification of accuracy in watershed simulations. Transactions of the
+ASABE, 50(3), 885-900.
+
+Legates, D.R., and McCabe, G.J. (1999). Evaluating the use of
+"goodness-of-fit" measures in hydrologic and hydroclimatic model
+validation. Water Resources Research, 35(1), 233-241.
+}
+\seealso{
+The other fit metrics: \code{\link[=NSE]{NSE()}}, \code{\link[=RSR]{RSR()}}, \code{\link[=PBIAS]{PBIAS()}}, \code{\link[=COD]{COD()}},
+\code{\link[=SSE]{SSE()}}, \code{\link[=RMSE]{RMSE()}}, \code{\link[=MAE]{MAE()}}; \code{\link[=test_model_fit]{test_model_fit()}}, which uses them to score
+a routing run.
 }

@@ -1,33 +1,66 @@
-#' Rainfall runoff routing function with added groundwater components.  
-#' 
-#' This function routes a timeseries of effective rainfall or lumped runoff 
-#' using a recursive filter to partition runoff into slowflow (Xs) and 
-#' quickflow (Xq). A fraction of Xs can also be routed as groundwater recharge 
-#' using a loss factor applied to either slowflow only or the sum of quick- and
-#' slowflow. There is also an option to add constant baseflow additions from a
-#' water source not associated with runoff (i.e., fossil GW from springs).
-#' 
-#' This function is based on the IHACRES style expuh function in Hydromad with 
-#' an addition of the GW loss term. 
-#' 
-#' Andrews F, Guillaume J, Vervoort W, Buzacott A (2021). hydromad: Hydrological 
-#' Model Assessment and Development. http://hydromad.catchment.org/, 
-#' https://github.com/josephguillaume/hydromad.
-#'       
-#' @param df: Dataframe containing timeseries data
-#' @param runoff_col: Character string specifying column name for runoff
-#' @param tau_q: Recession coefficient for quickflow (time unit of runoff)
-#' @param tau_s: Recession coefficient for slowflow (time unit of runoff)
-#' @param vs: Fraction of effective rainfall that goes to slowflow (-)
-#' @param loss: Fraction of slow flow that goes to groundwater recharge (-) (default: 0)
-#' @param baseflow: Constant baseflow value added to discharge representing "fossil GW" (default: 0)
-#' @param Delay: applied to quickflow (default: 0)
-#' @param return_components: Logical indicating return of separate components (default: FALSE)
-#' @param slow_only: Logical indicating groundwater loss from slowflow only (default: FALSE)
-#' 
-#' @return Dataframe containing the total routed flow (Q_tot).
-#'         If return_components is TRUE, also includes Q_slow, Q_quick, and Q_gw_recharge.
+#' @title Route runoff with quick, slow and groundwater components
+#'
+#' @description
+#' Routes a daily series of runoff (e.g. `runoff_in_wbm` from
+#' [run_NPS_WBM_points()]) into streamflow with two parallel linear
+#' reservoirs, an IHACRES-style filter based on `expuh` in the hydromad
+#' package (Andrews et al. 2021):
+#' * slowflow gets `vs` of the runoff and recedes with time constant `tau_s`;
+#' * quickflow gets the rest and recedes with `tau_q`.
+#'
+#' A fraction `loss` can be taken out as groundwater recharge, and a constant
+#' `baseflow` (e.g. spring flow not tied to runoff) can be added. Streamflow
+#' (`Q_tot`) is slowflow plus quickflow plus `baseflow`, in the units of the
+#' runoff.
+#'
+#' @param df Data frame. The daily series, with a date column and a runoff
+#'   column. Converted to a data.table and sorted by date. Required.
+#' @param tau_q Numeric of 0 or more. The quickflow time constant, in time
+#'   steps (days for daily data). Required.
+#' @param tau_s Numeric of 0 or more. The slowflow time constant, in time
+#'   steps. Required.
+#' @param vs Numeric from 0 to 1. The fraction of runoff that goes to
+#'   slowflow; `1 - vs` goes to quickflow. Required.
+#' @param delay Numeric. The number of time steps (rounded) by which all
+#'   components are shifted later, filling the start with 0. Default: `0`.
+#' @param loss Numeric from 0 to 1. The fraction taken out as groundwater
+#'   recharge (see `slow_only`). Default: `0`.
+#' @param baseflow Numeric. A constant flow added every time step, in runoff
+#'   units. Default: `0`.
+#' @param runoff_col String. The name of the runoff column. Default:
+#'   `"runoff_in_wbm"`.
+#' @param date_col String. The name of the date column. Default: `"date"`.
+#' @param return_components Logical. Whether to return the components.
+#'   * `TRUE`: adds `Q_slow`, `Q_quick` and `Q_gw_recharge`.
+#'   * `FALSE`: returns only `Q_tot`.
+#'
+#'   Default: `FALSE`.
+#' @param slow_only Logical. Where the groundwater loss comes from.
+#'   * `TRUE`: `loss` of the slowflow only, at most `max_inf` per time step.
+#'   * `FALSE`: `loss` of both slowflow and quickflow, with no cap.
+#'
+#'   Default: `FALSE`.
+#' @param max_inf Numeric. The most recharge per time step when
+#'   `slow_only = TRUE`; ignored otherwise. Default: `50`.
+#'
+#' @return A data frame with `date` and `Q_tot`, plus `Q_slow`, `Q_quick`
+#'   and `Q_gw_recharge` when `return_components = TRUE`.
+#' @references
+#' Andrews, F., Guillaume, J., Vervoort, W., and Buzacott, A. (2021).
+#'   hydromad: Hydrological Model Assessment and Development.
+#'   <https://github.com/josephguillaume/hydromad>
 #' @export
+#' @seealso [runoff_routing_snow_fun()] to route rain and snowmelt
+#'   separately; [test_model_fit()] to score a routing run against a gage.
+#' @examples
+#' runoff <- data.frame(date = seq(as.Date("2021-04-01"), by = "day", length.out = 10),
+#'                      runoff_in_wbm = c(0, 0, 1.2, 0.4, 0, 0, 0, 0.8, 0, 0))
+#' runoff_routing_gw(runoff, tau_q = 2, tau_s = 20, vs = 0.4)
+#'
+#' # With 10% groundwater loss, a little baseflow, and the components
+#' runoff_routing_gw(runoff, tau_q = 2, tau_s = 20, vs = 0.4, loss = 0.1,
+#'                   baseflow = 0.05, return_components = TRUE)
+
 runoff_routing_gw <- function(df, tau_q, tau_s, vs, delay = 0, loss = 0, 
                               baseflow = 0, 
                               runoff_col = "runoff_in_wbm",

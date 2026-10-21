@@ -2,21 +2,40 @@
 % Please edit documentation in R/get_storage.R
 \name{get_storage}
 \alias{get_storage}
-\title{CSU Created Function}
+\title{Daily release from a simple storage reservoir}
 \usage{
 get_storage(storage_add = DailyWB$STORAGE_ADD, return_rate = Return_Rate)
 }
 \arguments{
-\item{storage_add}{A daily time series of water added to storage (rain + melt - AET)}
+\item{storage_add}{Numeric vector. Daily water added to storage, in mm
+(rain plus melt minus AET minus the change in soil water). Default:
+\code{DailyWB$STORAGE_ADD}, which needs an object called \code{DailyWB} in the
+calling environment; pass the values.}
 
-\item{return_rate}{fractional (0-1) indicating the rate at which stored water is returned as runoff
-storage_release daily water released from storage
-storage_remain daily water remaining in storage}
+\item{return_rate}{Numeric from 0 to 1. The fraction of stored water
+released each day.
+\itemize{
+\item \code{1}: everything is released the day it arrives (no storage).
+\item Less than 1: release is spread over the following days.
+}
+
+Default: \code{Return_Rate}, which needs an object of that name in the
+calling environment; pass the value.}
+}
+\value{
+A list of two numeric vectors, both in mm: \code{storage_release}
+(water released each day) and \code{storage_remain} (water left in storage
+at the end of each day).
 }
 \description{
-get_storage
+Routes water through a linear storage: each day the water added
+(\code{storage_add}) joins the water already stored, and \code{return_rate} of
+the total is released. Used by \code{\link[=nps_wbm]{nps_wbm()}} to turn surplus water into
+runoff. Added by CSU to the original model.
 }
-\details{
-Calculates daily values of water released from storage (storage_release) and
-water remaining in storage (storage_remain) in mm.
+\examples{
+get_storage(storage_add = c(10, 0, 0, 5, 0), return_rate = 0.5)
+}
+\seealso{
+\code{\link[=nps_wbm]{nps_wbm()}}, whose \code{Return_Rate} argument is passed here.
 }

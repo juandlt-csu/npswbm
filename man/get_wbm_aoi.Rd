@@ -2,8 +2,7 @@
 % Please edit documentation in R/get_wbm_aoi.R
 \name{get_wbm_aoi}
 \alias{get_wbm_aoi}
-\title{Import or download daily WBM rasters for an AOI and summarize to mean daily 
-values in a dataframe.}
+\title{Daily WBM values for an area from saved rasters}
 \usage{
 get_wbm_aoi(
   park,
@@ -16,28 +15,73 @@ get_wbm_aoi(
 )
 }
 \arguments{
-\item{park}{The 4 digit national park code(s) for parks of interest}
+\item{park}{String. The four-letter park code (the subfolder name).
+Required.}
 
-\item{aoi}{An sf object to use as the crop extent}
+\item{aoi}{sf object. The area of interest; only used when
+\code{download = TRUE}. Required.}
 
-\item{aoi_name}{A character string used to name the file, often a description of the AOI pulled}
+\item{aoi_name}{String. The area name used in the file names by
+\code{\link[=get_wbm_grids]{get_wbm_grids()}}. Required.}
 
-\item{gcm}{A character vector containing selected GCMs for which to download future WBM}
+\item{gcm}{Character vector. The future climate models to download when
+\code{download = TRUE}. Default: \code{select_cfs$GCM}, which needs an object
+called \code{select_cfs} in the global environment.}
 
-\item{download}{A TRUE/FALSE}
+\item{download}{Logical. Whether to download the rasters first.
+\itemize{
+\item \code{TRUE}: meant to run \code{\link[=get_wbm_grids]{get_wbm_grids()}} for soil_water, runoff, rain,
+accumswe, PET, Deficit and AET first (minutes to hours), but it
+currently stops with an error (\verb{object 'gcms' not found}); run
+\code{\link[=get_wbm_grids]{get_wbm_grids()}} yourself instead.
+\item \code{FALSE}: reads the files already saved. Stops with an error if there
+are none.
+}
 
-\item{aoi_average}{TRUE/FALSE whether to return a single daily average value for the entire aoi}
+Default: \code{FALSE}.}
 
-\item{path}{home path in which to create subfolder}
+\item{aoi_average}{Logical. Whether to average over the area.
+\itemize{
+\item \code{TRUE}: one row per date and model, with one column per variable
+(the mean over all cells).
+\item \code{FALSE}: one row per cell, date, model and variable, keeping \code{x} and
+\code{y}.
+}
+
+Default: \code{FALSE}.}
+
+\item{path}{String. The folder that holds the park subfolders. It must
+end with \code{/}, because the park code is pasted straight on. Default:
+\verb{park/} in the shared data folder, see \code{\link[wavacore:wava_data_path]{wavacore::wava_data_path()}}.}
 }
 \value{
-A data.frame containing daily timeseries of the spatial mean for 
-         each water balance variable formatted like the 
-         get_centroid_wbm_data output.
+A data frame. With \code{aoi_average = FALSE}: \code{x}, \code{y}, \code{gcm},
+\code{wbm_var} (\code{runoff_in}, \code{rain_in}, \code{aet_in}, \code{pet_in}, \code{accumswe_in},
+\code{soil_water_in}, \code{deficit_in}), \code{date} and \code{val} (inches). With
+\code{aoi_average = TRUE}: \code{date}, \code{gcm} and one column per variable.
 }
 \description{
-This function uses the get_wbm_grids() function to download or import 
-gridded WBM rasters for an AOI. Each daily raster is then summarized using
-the daily mean, to return a timeseries of daily mean WBM variables for the
-AOI.
+Reads the daily WBM rasters saved by \code{\link[=get_wbm_grids]{get_wbm_grids()}} for an area
+(the files in \verb{<path><park>/wbm_daily_rasters/} whose names contain
+\code{aoi_name}) and returns them as a long table, converted from the files'
+units (tenths of mm) to inches. Historical layers get \code{gcm = "gridmet.historical"}. Files are read with \code{\link[furrr:future_map_dfr]{furrr::future_map_dfr()}}.
+}
+\examples{
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
+# Downloads one variable for two years into a temporary folder, then
+# reads it back; needs internet
+aoi <- sf::st_as_sf(sf::st_as_sfc(sf::st_bbox(
+  c(xmin = -113.1, ymin = 37.1, xmax = -112.8, ymax = 37.4), crs = 4326
+)))
+out <- paste0(tempdir(), "/")
+get_wbm_grids("ZION", aoi, aoi_name = "example", future_years = 2040,
+              historic_years = 2000, macas = "CCSM4.rcp45",
+              wb_var = "runoff", path = out)
+runoff <- get_wbm_aoi("ZION", aoi, aoi_name = "example", gcm = "CCSM4.rcp45",
+                      aoi_average = TRUE, path = out)
+head(runoff)
+\dontshow{\}) # examplesIf}
+}
+\seealso{
+\code{\link[=get_wbm_grids]{get_wbm_grids()}}, which saves the rasters.
 }

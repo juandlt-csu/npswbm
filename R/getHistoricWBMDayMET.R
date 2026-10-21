@@ -1,7 +1,41 @@
-# Downloads WBM outputs derived from DayMET (most recent iteration of the WBM). Found at:
-# http://www.yellowstone.solutions/thredds/catalog/daily_or_monthly/v2_historical/monthly/catalog.html
-
+#' @title Download monthly historical WBM values (DayMET version) for an area
+#'
+#' @description
+#' Downloads the monthly NetCDF files of the DayMET-driven historical NPS
+#' water balance model (the most recent version of the WBM) from
+#' <http://www.yellowstone.solutions/thredds/catalog/daily_or_monthly/v2_historical/monthly/catalog.html>
+#' for every year from 1980 to 2022 and each variable in `wb_vars`, crops
+#' each to `aoi`, and writes it as a CSV. It needs internet and makes
+#' 43 downloads per variable, so it takes a long time.
+#'
+#' It sets `options(timeout = 900)` for the session, and downloads into a
+#' temporary `templeod_dataall` folder in the working directory, which it
+#' deletes at the end.
+#'
+#' @param park String. The four-letter park code; names the subfolder and
+#'   the files. Required.
+#' @param aoi sf object. The area of interest to crop to. Required.
+#' @param path String. The folder the park subfolder is made in. The CSVs go
+#'   to `<path>/<park>/wbm_daymet_hist/<park>_daymet_<variable>_<year>.csv`,
+#'   one row per grid cell and month with the value in `val` and the
+#'   variable name in `var`, replacing existing files; the folders are
+#'   created if needed. Default: `park` in
+#'   the shared data folder, see [wavacore::wava_data_path()].
+#' @param wb_vars Character vector. The variables to download. Default:
+#'   `c("soil_water", "runoff", "rain", "agdd", "accumswe", "PET", "Deficit",
+#'   "AET")`.
+#'
+#' @return Called for the CSV files it writes; the return value is not
+#'   meant to be used.
 #' @export
+#' @seealso [get_wbm_grids()] for the daily GridMET and MACA versions.
+#' @examples
+#' \dontrun{
+#' # Not run: downloads 43 files per variable from the WBM server
+#' zion <- wavacore::getParkBoundary("ZION")
+#' getHistoricWBMDayMET("ZION", zion, path = tempdir(), wb_vars = "runoff")
+#' }
+
 getHistoricWBMDayMET <- function(park, aoi, path = wavacore::wava_data_path("park"), 
                                  wb_vars = c("soil_water", "runoff", "rain", "agdd", "accumswe", "PET", "Deficit", "AET")
 ) {
@@ -64,7 +98,7 @@ getHistoricWBMDayMET <- function(park, aoi, path = wavacore::wava_data_path("par
 #   wb_crop <- wb_crop %>%
 #     terra::crop(aoi, mask = TRUE)
 #   
-#   terra::writeRaster(wb_crop, filename = paste0(getwd(), "/", path, "/", park, "/wbm_hist/",
+#   terra::writeRaster(wb_crop, filename = paste0(path, "/", park, "/wbm_hist/",
 #                                                 park, "_", map_dat$wb_vars[i], "_", map_dat$years[i], ".nc4"),
 #                      overwrite = TRUE)
 # }

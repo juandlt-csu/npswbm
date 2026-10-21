@@ -1,19 +1,41 @@
-#' Import daily WBM rasters
-#' 
-#' This function pulls data directly from the FUTURE THREDDS server for specified variable, years, and climate models at a daily timestep
-#' and crops the imported rasters to an area of interest.
-#' 
-#' See 'scratch/explore_wbm_data_pull.Rmd' for examples
-#' 
-#' @param park The 4 digit national park code(s) for parks of interest
-#' @param aoi An sf object to use as the crop extent
-#' @param years A numeric vector of all years to pull daily data for
-#' @param macas The name of the GCMs to pull data from (ideally pulled from `selected_gcms`)
-#' @param wb_var The water balance variable to pull data for: ONE of runoff, soil_water, rain, accumswe, PET, deficit, AET
-#' @param path The file path to save the .tif of all stacked rasters. Automatically creates a subfolder called 'wbm_daily_rasters'
-#' 
-#' @return A SpatRaster with a layer for each daily value of specified wbm variable
+#' @title Download daily future WBM rasters for an area
+#'
+#' @description
+#' Reads the daily rasters of the gridded NPS water balance model for future
+#' climate (MACA models) from the WBM THREDDS server
+#' (`http://www.yellowstone.solutions/thredds/`) for one variable, the given
+#' years and models, so it needs internet. The rasters are stacked, given
+#' the server's CRS (Lambert conformal conic) and extent, cropped to `aoi`,
+#' and written to a GeoTIFF.
+#'
+#' @param park String. The four-letter park code; names the subfolder and
+#'   the file. Required.
+#' @param aoi sf object. The area of interest to crop to. Required.
+#' @param years Numeric vector. The years to download. Default: `2023:2070`.
+#' @param macas Character vector. The climate models, as
+#'   `"<model>.<scenario>"`, e.g. `"CCSM4.rcp45"`. Required.
+#' @param wb_var String. One water balance variable: `"runoff"`,
+#'   `"soil_water"`, `"rain"`, `"accumswe"`, `"PET"`, `"Deficit"` or
+#'   `"AET"`. Required.
+#' @param path String. The folder the park subfolder is made in. The file is
+#'   written to `<path>/<park>/wbm_daily_rasters/<park>_<wb_var>_selected_cfs_<first year>_<last year>.tif`,
+#'   replacing an existing file; the folders are created if needed. Default:
+#'   `park/` in the shared data folder, see [wavacore::wava_data_path()].
+#'
+#' @return A SpatRaster with one layer per day, named
+#'   `<model>_<year>_<layer>`.
 #' @export
+#' @seealso [get_wbm_grids()], which also downloads the historical rasters;
+#'   [get_wbm_aoi()] to summarize them.
+#' @examplesIf interactive()
+#' # Reads from the WBM THREDDS server, so it needs internet
+#' aoi <- sf::st_as_sf(sf::st_as_sfc(sf::st_bbox(
+#'   c(xmin = -113.1, ymin = 37.1, xmax = -112.8, ymax = 37.4), crs = 4326
+#' )))
+#' runoff <- get_future_wbm("ZION", aoi, years = 2040, macas = "CCSM4.rcp45",
+#'                          wb_var = "runoff", path = tempdir())
+#' runoff
+
 get_future_wbm <- function(park, aoi, years = 2023:2070, macas, wb_var, path = wavacore::wava_data_path("park/")) {
   # check that path to save files to exists
   if (!dir.exists(paste0(path, "/", park, "/wbm_daily_rasters/"))) {

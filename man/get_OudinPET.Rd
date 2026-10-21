@@ -2,30 +2,58 @@
 % Please edit documentation in R/get_OudinPET.R
 \name{get_OudinPET}
 \alias{get_OudinPET}
-\title{## This version of the NPS water balance model functions are based on:
-## Dave Thoma's water balance Excel spreadsheet model and were originally
-## created 10/30/2019 by ARC with subsequent updates 4/14/21 by MGS}
+\title{Oudin daily potential evapotranspiration, adjusted for heat load}
 \usage{
 get_OudinPET(doy, lat, snowpack, tmean, slope, aspect, shade.coeff = NULL)
 }
 \arguments{
-\item{doy}{Day-of-year (Julian date)}
+\item{doy}{Numeric vector. Day of year (1-366). Required.}
 
-\item{lat}{Latitude of the site (degrees).}
+\item{lat}{Numeric. The latitude of the site, in degrees. Required.}
 
-\item{snowpack}{A time series vector of snowpack accumulation values.}
+\item{snowpack}{Numeric vector. The snowpack on each day, in mm (e.g.
+from \code{\link[=get_snowpack]{get_snowpack()}}). Required.}
 
-\item{tmean}{A vector of daily mean temperatures (deg C).}
+\item{tmean}{Numeric vector. The daily mean temperature, in degrees C.
+Required.}
 
-\item{slope}{Slope of the site (in degrees).}
+\item{slope}{Numeric. The slope of the site, in degrees. Required.}
 
-\item{aspect}{Aspect of the site (in degrees).}
+\item{aspect}{Numeric. The aspect of the site, in degrees (0-360).
+Required.}
 
-\item{shade.coeff}{(optional) A shade coefficient from 0-1. Default is 1.}
+\item{shade.coeff}{Numeric (0-1) or \code{NULL}. A shading factor
+multiplied into PET.
+\itemize{
+\item A number, e.g. \code{0.8}: PET is reduced to that fraction.
+\item \code{NULL}: uses 1 (no shading).
+}
+
+Default: \code{NULL}.}
+}
+\value{
+A numeric vector of daily PET in mm, the same length as \code{doy}.
 }
 \description{
-Oudin Daily PET
+Calculates daily potential evapotranspiration (PET, mm) with the Oudin
+method, from extraterrestrial radiation (from day of year and latitude)
+and mean temperature, then multiplies it by a heat load factor for the
+site's slope and aspect (as in Lutz et al. 2010) and by \code{shade.coeff}.
+The default PET method of \code{\link[=nps_wbm]{nps_wbm()}} (\code{PET_Method = "Oudin"}).
+
+PET is 0 on days with more than 2 mm of snowpack or a mean temperature of
+-5 degrees C or less.
+
+These model functions are based on Dave Thoma's water balance spreadsheet
+model; they were first written on 2019-10-30 by ARC and updated on
+2021-04-14 by MGS.
 }
-\details{
-Calculates PET (mm) based on temperature, latitude, and solar radiation
+\examples{
+get_OudinPET(doy = c(15, 105, 196, 288), lat = 37.2,
+             snowpack = c(20, 0, 0, 0), tmean = c(-2, 10, 25, 12),
+             slope = 10, aspect = 180)
+}
+\seealso{
+\code{\link[=ET_Hamon_daily]{ET_Hamon_daily()}} and \code{\link[=ET_PenmanMonteith_daily]{ET_PenmanMonteith_daily()}}, the other
+PET methods; \code{\link[=nps_wbm]{nps_wbm()}}.
 }

@@ -17,7 +17,7 @@ Description: An R implementation of the National Park Service water balance
     Used by the deep-dive water supply vulnerability assessments.
 License: MIT + file LICENSE
 Encoding: UTF-8
-Roxygen: list(markdown = FALSE)
+Roxygen: list(markdown = TRUE)
 URL: https://github.com/Water-Vulnerability-Analytics/npswbm
 BugReports: https://github.com/Water-Vulnerability-Analytics/npswbm/issues
 Remotes: Water-Vulnerability-Analytics/wavacore

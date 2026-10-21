@@ -2,18 +2,45 @@
 % Please edit documentation in R/Objective_Functions.R
 \name{COD}
 \alias{COD}
-\title{Coefficient of Determination (R^2)}
+\title{Coefficient of determination (R squared)}
 \usage{
 COD(obs, sim)
 }
 \arguments{
-\item{obs}{Vector of observed values}
+\item{obs}{Numeric vector. Observed values, e.g. daily streamflow at a
+gage. Pairs where \code{obs} or \code{sim} is \code{NA} are dropped first. Required.}
 
-\item{sim}{Vector of simulated/modeled values}
+\item{sim}{Numeric vector. Simulated values, the same length as \code{obs}.
+Required.}
 }
 \value{
-Value between 0 and 1.
+A number from 0 to 1 (higher is better). Returns \code{0} when fewer
+than 2 pairs are left or either series doesn't vary.
 }
 \description{
-Coefficient of Determination (R^2)
+Calculates the squared Pearson correlation between simulated and
+observed values: the share of the variance in the observations the model
+explains (Legates and McCabe 1999).
+
+The metrics are summarized at
+\url{https://www.hec.usace.army.mil/confluence/hmsdocs/hmstrm/calibration/calibration-summary-statistics}.
+}
+\examples{
+obs <- c(2.1, 3.4, 8.0, 5.2, 3.3, NA, 2.4)
+sim <- c(2.4, 3.1, 7.2, 5.9, 3.0, 2.8, 2.2)
+COD(obs, sim)
+}
+\references{
+Moriasi, D.N. et al. (2007). Model evaluation guidelines for systematic
+quantification of accuracy in watershed simulations. Transactions of the
+ASABE, 50(3), 885-900.
+
+Legates, D.R., and McCabe, G.J. (1999). Evaluating the use of
+"goodness-of-fit" measures in hydrologic and hydroclimatic model
+validation. Water Resources Research, 35(1), 233-241.
+}
+\seealso{
+The other fit metrics: \code{\link[=NSE]{NSE()}}, \code{\link[=RSR]{RSR()}}, \code{\link[=PBIAS]{PBIAS()}}, \code{\link[=COD]{COD()}},
+\code{\link[=SSE]{SSE()}}, \code{\link[=RMSE]{RMSE()}}, \code{\link[=MAE]{MAE()}}; \code{\link[=test_model_fit]{test_model_fit()}}, which uses them to score
+a routing run.
 }

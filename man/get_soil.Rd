@@ -2,26 +2,43 @@
 % Please edit documentation in R/get_soil.R
 \name{get_soil}
 \alias{get_soil}
-\title{## This version of the NPS water balance model functions are based on:
-## Dave Thoma's water balance Excel spreadsheet model and were originally
-## created 10/30/2019 by ARC with subsequent updates 4/14/21 by MGS}
+\title{Daily soil water content}
 \usage{
 get_soil(w, swc.0 = NULL, pet, w_pet, swc.max)
 }
 \arguments{
-\item{w}{A time series vector of available water for soil charging (rain + snowmelt).}
+\item{w}{Numeric vector. Daily water available to the soil (rain plus
+melt), in mm. Required.}
 
-\item{swc.0}{(optional) The initial soil water content value. Default is 0.}
+\item{swc.0}{Numeric or \code{NULL}. The soil water before the first day, in
+mm. \code{NULL} uses 0. Default: \code{NULL}.}
 
-\item{pet}{A time series vector of PET.}
+\item{pet}{Numeric vector. Daily PET, in mm. Required.}
 
-\item{w_pet}{A time series vector of the difference between w and pet.}
+\item{w_pet}{Numeric vector. \code{w - pet} for each day, in mm. Required.}
 
-\item{swc.max}{The maximum soil water-holding capacity of the soil layer being assessed.}
+\item{swc.max}{Numeric. The soil's water holding capacity, in mm.
+Required.}
+}
+\value{
+A numeric vector of soil water content at the end of each day, in
+mm.
 }
 \description{
-Soil Water Content (SWC)
+Updates soil water content day by day. On days when available water
+(\code{w}) exceeds PET, the soil fills by \code{w_pet} up to \code{swc.max}. On
+other days it dries exponentially:
+\code{swc - swc * (1 - exp(-(pet - w) / swc.max))}.
+
+These model functions are based on Dave Thoma's water balance spreadsheet
+model; they were first written on 2019-10-30 by ARC and updated on
+2021-04-14 by MGS.
 }
-\details{
-Calculates soil water content from available water (rain + snowmelt), PET, max. water-holding capacity, and initial SWC.
+\examples{
+w <- c(10, 0, 0, 25, 0)
+pet <- c(3, 4, 5, 2, 6)
+get_soil(w, swc.0 = 50, pet = pet, w_pet = w - pet, swc.max = 100)
+}
+\seealso{
+\code{\link[=get_AET]{get_AET()}}, which uses the soil water; \code{\link[=nps_wbm]{nps_wbm()}}.
 }

@@ -2,20 +2,32 @@
 % Please edit documentation in R/get_GDD.R
 \name{get_GDD}
 \alias{get_GDD}
-\title{## This version of the NPS water balance model functions are based on:
-## Dave Thoma's water balance Excel spreadsheet model and were originally
-## created 10/30/2019 by ARC with subsequent updates 4/14/21 by MGS}
+\title{Growing degree-days}
 \usage{
 get_GDD(tmean, tbase = NULL)
 }
 \arguments{
-\item{tmean}{A time series vector of daily mean temperatures (deg C).}
+\item{tmean}{Numeric vector. The daily mean temperature, in degrees C.
+Required.}
 
-\item{tbase}{(optional) A threshold temperature, above which growing degree-days are calculated. Default is 0.}
+\item{tbase}{Numeric or \code{NULL}. The base temperature, in degrees C.
+\code{NULL} uses 0. Default: \code{NULL}.}
+}
+\value{
+A numeric vector of growing degree-days, one per day.
 }
 \description{
-Growing Degree-Days
+Daily growing degree-days: \code{tmean - tbase} when \code{tmean} is at least
+\code{tbase}, otherwise 0.
+
+These model functions are based on Dave Thoma's water balance spreadsheet
+model; they were first written on 2019-10-30 by ARC and updated on
+2021-04-14 by MGS.
 }
-\details{
-Calculates growing degree-days at daily time steps based on mean temperature and a threshold temperature.
+\examples{
+get_GDD(c(-3, 2, 8, 15))
+get_GDD(c(-3, 2, 8, 15), tbase = 5)
+}
+\seealso{
+\code{\link[=nps_wbm]{nps_wbm()}}, which calculates them as \code{GDD}.
 }

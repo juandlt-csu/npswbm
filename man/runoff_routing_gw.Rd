@@ -2,7 +2,7 @@
 % Please edit documentation in R/runoff_routing_gw.R
 \name{runoff_routing_gw}
 \alias{runoff_routing_gw}
-\title{Rainfall runoff routing function with added groundwater components.}
+\title{Route runoff with quick, slow and groundwater components}
 \usage{
 runoff_routing_gw(
   df,
@@ -20,43 +20,85 @@ runoff_routing_gw(
 )
 }
 \arguments{
-\item{df:}{Dataframe containing timeseries data}
+\item{df}{Data frame. The daily series, with a date column and a runoff
+column. Converted to a data.table and sorted by date. Required.}
 
-\item{runoff_col:}{Character string specifying column name for runoff}
+\item{tau_q}{Numeric of 0 or more. The quickflow time constant, in time
+steps (days for daily data). Required.}
 
-\item{tau_q:}{Recession coefficient for quickflow (time unit of runoff)}
+\item{tau_s}{Numeric of 0 or more. The slowflow time constant, in time
+steps. Required.}
 
-\item{tau_s:}{Recession coefficient for slowflow (time unit of runoff)}
+\item{vs}{Numeric from 0 to 1. The fraction of runoff that goes to
+slowflow; \code{1 - vs} goes to quickflow. Required.}
 
-\item{vs:}{Fraction of effective rainfall that goes to slowflow (-)}
+\item{delay}{Numeric. The number of time steps (rounded) by which all
+components are shifted later, filling the start with 0. Default: \code{0}.}
 
-\item{loss:}{Fraction of slow flow that goes to groundwater recharge (-) (default: 0)}
+\item{loss}{Numeric from 0 to 1. The fraction taken out as groundwater
+recharge (see \code{slow_only}). Default: \code{0}.}
 
-\item{baseflow:}{Constant baseflow value added to discharge representing "fossil GW" (default: 0)}
+\item{baseflow}{Numeric. A constant flow added every time step, in runoff
+units. Default: \code{0}.}
 
-\item{Delay:}{applied to quickflow (default: 0)}
+\item{runoff_col}{String. The name of the runoff column. Default:
+\code{"runoff_in_wbm"}.}
 
-\item{return_components:}{Logical indicating return of separate components (default: FALSE)}
+\item{date_col}{String. The name of the date column. Default: \code{"date"}.}
 
-\item{slow_only:}{Logical indicating groundwater loss from slowflow only (default: FALSE)}
+\item{return_components}{Logical. Whether to return the components.
+\itemize{
+\item \code{TRUE}: adds \code{Q_slow}, \code{Q_quick} and \code{Q_gw_recharge}.
+\item \code{FALSE}: returns only \code{Q_tot}.
+}
+
+Default: \code{FALSE}.}
+
+\item{slow_only}{Logical. Where the groundwater loss comes from.
+\itemize{
+\item \code{TRUE}: \code{loss} of the slowflow only, at most \code{max_inf} per time step.
+\item \code{FALSE}: \code{loss} of both slowflow and quickflow, with no cap.
+}
+
+Default: \code{FALSE}.}
+
+\item{max_inf}{Numeric. The most recharge per time step when
+\code{slow_only = TRUE}; ignored otherwise. Default: \code{50}.}
 }
 \value{
-Dataframe containing the total routed flow (Q_tot).
-        If return_components is TRUE, also includes Q_slow, Q_quick, and Q_gw_recharge.
+A data frame with \code{date} and \code{Q_tot}, plus \code{Q_slow}, \code{Q_quick}
+and \code{Q_gw_recharge} when \code{return_components = TRUE}.
 }
 \description{
-This function routes a timeseries of effective rainfall or lumped runoff 
-using a recursive filter to partition runoff into slowflow (Xs) and 
-quickflow (Xq). A fraction of Xs can also be routed as groundwater recharge 
-using a loss factor applied to either slowflow only or the sum of quick- and
-slowflow. There is also an option to add constant baseflow additions from a
-water source not associated with runoff (i.e., fossil GW from springs).
+Routes a daily series of runoff (e.g. \code{runoff_in_wbm} from
+\code{\link[=run_NPS_WBM_points]{run_NPS_WBM_points()}}) into streamflow with two parallel linear
+reservoirs, an IHACRES-style filter based on \code{expuh} in the hydromad
+package (Andrews et al. 2021):
+\itemize{
+\item slowflow gets \code{vs} of the runoff and recedes with time constant \code{tau_s};
+\item quickflow gets the rest and recedes with \code{tau_q}.
 }
-\details{
-This function is based on the IHACRES style expuh function in Hydromad with 
-an addition of the GW loss term. 
 
-Andrews F, Guillaume J, Vervoort W, Buzacott A (2021). hydromad: Hydrological 
-Model Assessment and Development. http://hydromad.catchment.org/, 
-https://github.com/josephguillaume/hydromad.
+A fraction \code{loss} can be taken out as groundwater recharge, and a constant
+\code{baseflow} (e.g. spring flow not tied to runoff) can be added. Streamflow
+(\code{Q_tot}) is slowflow plus quickflow plus \code{baseflow}, in the units of the
+runoff.
+}
+\examples{
+runoff <- data.frame(date = seq(as.Date("2021-04-01"), by = "day", length.out = 10),
+                     runoff_in_wbm = c(0, 0, 1.2, 0.4, 0, 0, 0, 0.8, 0, 0))
+runoff_routing_gw(runoff, tau_q = 2, tau_s = 20, vs = 0.4)
+
+# With 10\% groundwater loss, a little baseflow, and the components
+runoff_routing_gw(runoff, tau_q = 2, tau_s = 20, vs = 0.4, loss = 0.1,
+                  baseflow = 0.05, return_components = TRUE)
+}
+\references{
+Andrews, F., Guillaume, J., Vervoort, W., and Buzacott, A. (2021).
+hydromad: Hydrological Model Assessment and Development.
+\url{https://github.com/josephguillaume/hydromad}
+}
+\seealso{
+\code{\link[=runoff_routing_snow_fun]{runoff_routing_snow_fun()}} to route rain and snowmelt
+separately; \code{\link[=test_model_fit]{test_model_fit()}} to score a routing run against a gage.
 }

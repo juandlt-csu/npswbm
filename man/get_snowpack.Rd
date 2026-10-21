@@ -2,24 +2,41 @@
 % Please edit documentation in R/get_snowpack.R
 \name{get_snowpack}
 \alias{get_snowpack}
-\title{## This version of the NPS water balance model functions are based on:
-## Dave Thoma's water balance Excel spreadsheet model and were originally
-## created 10/30/2019 by ARC with subsequent updates 4/14/21 by MGS}
+\title{Daily snowpack from snowfall and melt}
 \usage{
 get_snowpack(jtemp, snow, melt, sp.0 = NULL)
 }
 \arguments{
-\item{jtemp}{the Jennings temperature extracted from the raster based on latitude and longitude.}
+\item{jtemp}{Numeric. The Jennings threshold temperature. Not used; kept
+for compatibility. Required (any value).}
 
-\item{snow}{A time series vector of snowfall values.}
+\item{snow}{Numeric vector. Daily snowfall, in mm (from \code{\link[=get_snow]{get_snow()}}).
+Required.}
 
-\item{melt}{A time series vector of snowmelt.}
+\item{melt}{Numeric vector. Daily melt, in mm (from \code{\link[=get_melt]{get_melt()}}).
+Required.}
 
-\item{sp.0}{(optional) Initial snowpack value. Default is 0.}
+\item{sp.0}{Numeric or \code{NULL}. The snowpack before the first day, in mm.
+\code{NULL} uses 0. Default: \code{NULL}.}
+}
+\value{
+A numeric vector of the snowpack at the end of each day, in mm.
 }
 \description{
-Snowpack
+Accumulates the snowpack day by day: each day's snowpack is the day
+before's plus snowfall minus melt.
+
+These model functions are based on Dave Thoma's water balance spreadsheet
+model; they were first written on 2019-10-30 by ARC and updated on
+2021-04-14 by MGS.
 }
-\details{
-Calculates snowpack accumulation at time steps, from a time series of snowfall and melt.
+\examples{
+tmean <- c(-6, -4, -1, 2, 5, 8)
+snow <- c(20, 15, 5, 0, 0, 0)
+melt <- get_melt(tmean, jtemp = rep(1.5, 6), hock = 4, snow = snow)
+get_snowpack(jtemp = 1.5, snow = snow, melt = melt)
+}
+\seealso{
+\code{\link[=get_melt]{get_melt()}}; \code{\link[=get_OudinPET]{get_OudinPET()}}, which sets PET to 0 under
+snowpack.
 }

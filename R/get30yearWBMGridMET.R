@@ -1,17 +1,55 @@
-#' This function returns the 30-year statistic rasters (annual means) for the NPS gridded
-#' water balance mode based on user input area of interest, WBM variable(s), year ranges and GCMs and
-#' returns a raster stack of all .tifs
-#' 
-#' @param aoi area of interest to return 30-year statistics. Should be an sf object
-#' @param variable the WBM variables to pull data for, can be a single variable or list.
-#' @param cf A list of the GCMs to pull data for
-#' @param historic_years A character range of historic years separated by "_". Choose from: "1980_1999", "1980_2019", "1981_2010", "2000_2019"
-#' @param future_years A character range of future years separated by "_". Default is all future ranges: c("2040_2069", "2070_2099")
-#' @param save TRUE/FALSE, whether or not to save the raster stack output
-#' @param path directory to save raster stack to
-#' @param filename_prefix a name to append to filename that describes the AOI for the saved raster stack
-#' @return A SpatRaster stack of all downloaded rasters
+#' @title 30-year annual mean rasters of the gridded NPS water balance model
+#'
+#' @description
+#' Downloads the 30-year annual mean rasters of the gridded NPS water balance
+#' model (GridMET historical and MACA future runs, in mm) from the WBM
+#' summaries site
+#' (<http://screenedcleanedsummaries.s3-website-us-west-2.amazonaws.com/>),
+#' crops each to `aoi`, and stacks them, so it needs internet. One file is
+#' downloaded per variable, model and period, plus the historical ones.
+#'
+#' Models whose name contains MIROC-ESM are downloaded as
+#' `MIROC-ESM-CHEM_rcp85`, because the WBM has no MIROC-ESM RCP4.5 run.
+#'
+#' @param aoi sf object. The area of interest to crop to, e.g. a buffered
+#'   park boundary. Required.
+#' @param variable Character vector. The WBM variables, e.g. `"runoff"`,
+#'   `"AET"`, `"soil_water"`, `"Deficit"`. Default: `"runoff"`.
+#' @param cf Character vector. The future climate models, as
+#'   `"<model>.<scenario>"`, e.g. `"CCSM4.rcp45"` (as picked by
+#'   `select_cfs_deep_dive()` in wavadeepdive). Required.
+#' @param historic_years Character vector. The historical periods: any of
+#'   `"1980_1999"`, `"1980_2019"`, `"1981_2010"` and `"2000_2019"`. Default:
+#'   `"1981_2010"`.
+#' @param future_years Character vector. The future periods: `"2040_2069"`
+#'   and/or `"2070_2099"`. Default: `c("2040_2069", "2070_2099")`.
+#' @param save Logical. Whether to write the stack to a GeoTIFF.
+#'   * `TRUE`: writes `<filename_prefix>_wbm_30yr_annual_rasters.tif` to
+#'     `<path>/wbm_gridmet_30_year/`, creating the folders if needed and
+#'     replacing an existing file.
+#'   * `FALSE`: writes nothing.
+#'
+#'   Default: `TRUE`.
+#' @param path String. The folder that gets the `wbm_gridmet_30_year`
+#'   subfolder when `save = TRUE`. Default: `all` in the shared data folder,
+#'   see [wavacore::wava_data_path()], so a default call writes there.
+#' @param filename_prefix String. The start of the file name, describing the
+#'   area (e.g. `"BRCA"`). Required when `save = TRUE`; not used otherwise.
+#'
+#' @return A SpatRaster with one layer per file, named after the file
+#'   (variable, model, period); values are annual means in mm.
 #' @export
+#' @seealso [get_future_wbm()] and [get_wbm_grids()] for daily WBM rasters.
+#' @examplesIf interactive()
+#' # Downloads from the WBM summaries site, so it needs internet
+#' aoi <- sf::st_as_sf(sf::st_as_sfc(sf::st_bbox(
+#'   c(xmin = -113.1, ymin = 37.1, xmax = -112.8, ymax = 37.4), crs = 4326
+#' )))
+#' runoff_30yr <- get30yearWBMGridMET(aoi, variable = "runoff",
+#'                                    cf = c("CCSM4.rcp45", "CanESM2.rcp85"),
+#'                                    save = FALSE)
+#' names(runoff_30yr)
+
 get30yearWBMGridMET <- function(aoi,
                                 variable = c("runoff"),
                                 cf,

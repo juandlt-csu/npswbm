@@ -2,18 +2,44 @@
 % Please edit documentation in R/Objective_Functions.R
 \name{RMSE}
 \alias{RMSE}
-\title{Root Mean Square Error (RMSE)}
+\title{Root mean square error (RMSE)}
 \usage{
 RMSE(obs, sim)
 }
 \arguments{
-\item{obs}{Vector of observed values}
+\item{obs}{Numeric vector. Observed values, e.g. daily streamflow at a
+gage. Pairs where \code{obs} or \code{sim} is \code{NA} are dropped first. Required.}
 
-\item{sim}{Vector of simulated/modeled values}
+\item{sim}{Numeric vector. Simulated values, the same length as \code{obs}.
+Required.}
 }
 \value{
-Error in data units. Lower is better.
+A number of 0 or more, in data units (lower is better). Returns
+\code{1e10} (a penalty for optimizers) when no pairs are left.
 }
 \description{
-Root Mean Square Error (RMSE)
+Calculates the root mean square error between simulated and observed
+values, in the units of the data.
+
+The metrics are summarized at
+\url{https://www.hec.usace.army.mil/confluence/hmsdocs/hmstrm/calibration/calibration-summary-statistics}.
+}
+\examples{
+obs <- c(2.1, 3.4, 8.0, 5.2, 3.3, NA, 2.4)
+sim <- c(2.4, 3.1, 7.2, 5.9, 3.0, 2.8, 2.2)
+RMSE(obs, sim)
+}
+\references{
+Moriasi, D.N. et al. (2007). Model evaluation guidelines for systematic
+quantification of accuracy in watershed simulations. Transactions of the
+ASABE, 50(3), 885-900.
+
+Legates, D.R., and McCabe, G.J. (1999). Evaluating the use of
+"goodness-of-fit" measures in hydrologic and hydroclimatic model
+validation. Water Resources Research, 35(1), 233-241.
+}
+\seealso{
+The other fit metrics: \code{\link[=NSE]{NSE()}}, \code{\link[=RSR]{RSR()}}, \code{\link[=PBIAS]{PBIAS()}}, \code{\link[=COD]{COD()}},
+\code{\link[=SSE]{SSE()}}, \code{\link[=RMSE]{RMSE()}}, \code{\link[=MAE]{MAE()}}; \code{\link[=test_model_fit]{test_model_fit()}}, which uses them to score
+a routing run.
 }

@@ -2,7 +2,7 @@
 % Please edit documentation in R/get_future_wbm.R
 \name{get_future_wbm}
 \alias{get_future_wbm}
-\title{Import daily WBM rasters}
+\title{Download daily future WBM rasters for an area}
 \usage{
 get_future_wbm(
   park,
@@ -14,25 +14,49 @@ get_future_wbm(
 )
 }
 \arguments{
-\item{park}{The 4 digit national park code(s) for parks of interest}
+\item{park}{String. The four-letter park code; names the subfolder and
+the file. Required.}
 
-\item{aoi}{An sf object to use as the crop extent}
+\item{aoi}{sf object. The area of interest to crop to. Required.}
 
-\item{years}{A numeric vector of all years to pull daily data for}
+\item{years}{Numeric vector. The years to download. Default: \code{2023:2070}.}
 
-\item{macas}{The name of the GCMs to pull data from (ideally pulled from `selected_gcms`)}
+\item{macas}{Character vector. The climate models, as
+\code{"<model>.<scenario>"}, e.g. \code{"CCSM4.rcp45"}. Required.}
 
-\item{wb_var}{The water balance variable to pull data for: ONE of runoff, soil_water, rain, accumswe, PET, deficit, AET}
+\item{wb_var}{String. One water balance variable: \code{"runoff"},
+\code{"soil_water"}, \code{"rain"}, \code{"accumswe"}, \code{"PET"}, \code{"Deficit"} or
+\code{"AET"}. Required.}
 
-\item{path}{The file path to save the .tif of all stacked rasters. Automatically creates a subfolder called 'wbm_daily_rasters'}
+\item{path}{String. The folder the park subfolder is made in. The file is
+written to \verb{<path>/<park>/wbm_daily_rasters/<park>_<wb_var>_selected_cfs_<first year>_<last year>.tif},
+replacing an existing file; the folders are created if needed. Default:
+\verb{park/} in the shared data folder, see \code{\link[wavacore:wava_data_path]{wavacore::wava_data_path()}}.}
 }
 \value{
-A SpatRaster with a layer for each daily value of specified wbm variable
+A SpatRaster with one layer per day, named
+\verb{<model>_<year>_<layer>}.
 }
 \description{
-This function pulls data directly from the FUTURE THREDDS server for specified variable, years, and climate models at a daily timestep
-and crops the imported rasters to an area of interest.
+Reads the daily rasters of the gridded NPS water balance model for future
+climate (MACA models) from the WBM THREDDS server
+(\verb{http://www.yellowstone.solutions/thredds/}) for one variable, the given
+years and models, so it needs internet. The rasters are stacked, given
+the server's CRS (Lambert conformal conic) and extent, cropped to \code{aoi},
+and written to a GeoTIFF.
 }
-\details{
-See 'scratch/explore_wbm_data_pull.Rmd' for examples
+\examples{
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
+# Reads from the WBM THREDDS server, so it needs internet
+aoi <- sf::st_as_sf(sf::st_as_sfc(sf::st_bbox(
+  c(xmin = -113.1, ymin = 37.1, xmax = -112.8, ymax = 37.4), crs = 4326
+)))
+runoff <- get_future_wbm("ZION", aoi, years = 2040, macas = "CCSM4.rcp45",
+                         wb_var = "runoff", path = tempdir())
+runoff
+\dontshow{\}) # examplesIf}
+}
+\seealso{
+\code{\link[=get_wbm_grids]{get_wbm_grids()}}, which also downloads the historical rasters;
+\code{\link[=get_wbm_aoi]{get_wbm_aoi()}} to summarize them.
 }

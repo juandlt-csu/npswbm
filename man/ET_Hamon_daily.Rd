@@ -2,18 +2,32 @@
 % Please edit documentation in R/ET_Hamon_daily.R
 \name{ET_Hamon_daily}
 \alias{ET_Hamon_daily}
-\title{## This version of the NPS water balance model functions are based on:
-## Dave Thoma's water balance Excel spreadsheet model and were originally
-## created 10/30/2019 by ARC with subsequent updates 4/14/21 by MGS}
+\title{Hamon daily potential evapotranspiration}
 \usage{
 ET_Hamon_daily(x)
 }
 \arguments{
-\item{x}{A daily time series data frame containing tmean_C (deg C), and daylength (hours)}
+\item{x}{Data frame. A daily time series with \code{tmean_C} (mean air
+temperature, degrees C) and \code{daylength} (hours, e.g. from
+\code{\link[=get_daylength]{get_daylength()}}). Required.}
+}
+\value{
+A numeric vector of daily PET in mm, one value per row of \code{x}.
 }
 \description{
-Hamon Daily PET
+Calculates daily potential evapotranspiration (PET, mm) with the Hamon
+method, from mean temperature and day length. One of the PET methods of
+\code{\link[=nps_wbm]{nps_wbm()}} (\code{PET_Method = "Hamon"}).
+
+These model functions are based on Dave Thoma's water balance spreadsheet
+model; they were first written on 2019-10-30 by ARC and updated on
+2021-04-14 by MGS.
 }
-\details{
-Calculates Hamon PET from a daily time series of Tmean and daylength.
+\examples{
+days <- data.frame(tmean_C = c(-5, 5, 15, 25), daylength = c(9.5, 11, 13, 14.5))
+ET_Hamon_daily(days)
+}
+\seealso{
+\code{\link[=get_OudinPET]{get_OudinPET()}} and \code{\link[=ET_PenmanMonteith_daily]{ET_PenmanMonteith_daily()}}, the other PET
+methods; \code{\link[=nps_wbm]{nps_wbm()}}.
 }

@@ -1,14 +1,31 @@
-#' CSU Created Function
+#' @title Daily release from a simple storage reservoir
 #'
-#' get_storage
+#' @description
+#' Routes water through a linear storage: each day the water added
+#' (`storage_add`) joins the water already stored, and `return_rate` of
+#' the total is released. Used by [nps_wbm()] to turn surplus water into
+#' runoff. Added by CSU to the original model.
 #'
-#' Calculates daily values of water released from storage (storage_release) and
-#' water remaining in storage (storage_remain) in mm.
-#' @param storage_add A daily time series of water added to storage (rain + melt - AET)
-#' @param return_rate fractional (0-1) indicating the rate at which stored water is returned as runoff
-#' storage_release daily water released from storage
-#' storage_remain daily water remaining in storage
+#' @param storage_add Numeric vector. Daily water added to storage, in mm
+#'   (rain plus melt minus AET minus the change in soil water). Default:
+#'   `DailyWB$STORAGE_ADD`, which needs an object called `DailyWB` in the
+#'   calling environment; pass the values.
+#' @param return_rate Numeric from 0 to 1. The fraction of stored water
+#'   released each day.
+#'   * `1`: everything is released the day it arrives (no storage).
+#'   * Less than 1: release is spread over the following days.
+#'
+#'   Default: `Return_Rate`, which needs an object of that name in the
+#'   calling environment; pass the value.
+#'
+#' @return A list of two numeric vectors, both in mm: `storage_release`
+#'   (water released each day) and `storage_remain` (water left in storage
+#'   at the end of each day).
 #' @export
+#' @seealso [nps_wbm()], whose `Return_Rate` argument is passed here.
+#' @examples
+#' get_storage(storage_add = c(10, 0, 0, 5, 0), return_rate = 0.5)
+
 get_storage <- function(storage_add = DailyWB$STORAGE_ADD, 
                         return_rate = Return_Rate) {
   storage_release <- 0 * storage_add

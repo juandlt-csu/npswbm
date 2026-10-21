@@ -1,16 +1,13 @@
-#' ## This version of the NPS water balance model functions are based on:
-#' ## Dave Thoma's water balance Excel spreadsheet model and were originally
-#' ## created 10/30/2019 by ARC with subsequent updates 4/14/21 by MGS 
-#' 
-#' Modify PET
-#'
-#' Modifies PET by heat load according to method by Lutz et al. (2010).
-#' @param pet A time series vector of PET values.
-#' @param slope Slope of the site (in degrees).
-#' @param aspect Aspect of the site (in degrees).
-#' @param lat Latitude of the site (in degrees).
-#' @param freeze A vector of freeze factor values, calculated from Tmean. Values are 0-1.
-#' @param shade.coeff (optional) A shade coefficient from 0-1. Default is 1.
+#' Adjusts PET for heat load (Lutz et al. 2010) from slope, aspect and
+#' latitude, sets it to 0 on days with a freeze factor of 0, and multiplies
+#' by a shade coefficient. Not used by [nps_wbm()] at the moment.
+#' @param pet Numeric vector. Daily PET.
+#' @param slope,aspect Numeric. Slope and aspect of the site, degrees.
+#' @param lat Numeric. Latitude, degrees.
+#' @param freeze Numeric vector. Freeze factor (0-1) from [get_freeze()].
+#' @param shade.coeff Numeric (0-1) or NULL. Shade coefficient; NULL uses 1.
+#' @return Numeric vector. Adjusted PET.
+#' @noRd
 
 modify_PET = function(pet, slope, aspect, lat, freeze, shade.coeff=NULL){
   f.aspect = abs(180 - abs(aspect - 225))

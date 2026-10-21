@@ -1,79 +1,109 @@
-#' Run the NPS Water Balance Model (WBM)
+#' @title Run the NPS water balance model for one site
 #'
 #' @description
-#' Main driver for the NPS Water Balance Model. Given a daily meteorological
-#' time series (`DailyWB`) and site-specific parameters (`point_params`), the
-#' function computes daily snow/rain partitioning, snowpack dynamics, potential
-#' and actual evapotranspiration, soil water storage, and runoff.
+#' Runs the NPS water balance model (WBM) on a daily climate series for one
+#' site. Each day it:
+#' 1. splits precipitation into rain and snow with the Jennings threshold
+#'    temperature ([get_freeze()], [get_rain()], [get_snow()]);
+#' 2. melts snow with a degree-day factor and updates the snowpack
+#'    ([get_melt()], [get_snowpack()]);
+#' 3. sends `Direct_Frac` of the rain straight to runoff;
+#' 4. calculates PET with `PET_Method` and multiplies it by `PET_mult`;
+#' 5. updates soil water, with the capacity scaled by `Soil_mult`
+#'    ([get_soil()]), and calculates AET ([get_AET()]) and the change in soil
+#'    water;
+#' 6. puts the surplus (water minus AET minus the soil change) in a storage
+#'    reservoir that releases `Return_Rate` of its water each day
+#'    ([get_storage()]); runoff is that release plus the direct rain.
 #'
-#' @details
-#' The model:
-#' 1) derives day-of-year and daylength;  
-#' 2) partitions precipitation into rain/snow using a temperature-based freeze
-#'    factor;  
-#' 3) computes melt with a degree-day (Hock) approach;  
-#' 4) updates snowpack;  
-#' 5) routes a user-defined fraction of rain directly to runoff (`Direct_Frac`);  
-#' 6) computes PET using one of `"Oudin"`, `"Hamon"`, or `"Penman-Monteith"` and
-#'    applies a multiplicative bias term (`PET_mult`);  
-#' 7) updates soil moisture with capacity scaled by `Soil_mult * SWC.Max`;  
-#' 8) computes AET, soil change (`DSOIL`), and a simple storage reservoir that
-#'    releases water at `Return_Rate`.  
+#' With the defaults `Direct_Frac = 0`, `Return_Rate = 1`, `PET_mult = 1`
+#' and `Soil_mult = 1` (the CSU additions), it matches the original model.
+#' AET is calculated from the unadjusted PET, so `PET_mult` changes the soil
+#' water but not AET.
 #'
-#' **Units:** Inputs expect precipitation in mm and temperature in °C. The output
-#' long table converts all fluxes to inches (÷25.4) except temperature columns.
+#' These model functions are based on Dave Thoma's water balance spreadsheet
+#' model; they were first written on 2019-10-30 by ARC and updated on
+#' 2021-04-14 by MGS.
 #'
-#' @param DailyWB A data frame or tibble with at least the columns:
-#'   - `x` (numeric) longitude in decimal degrees,  
-#'   - `y` (numeric) latitude in decimal degrees,  
-#'   - `date` (Date) daily sequence without gaps,  
-#'   - `ppt_mm` (numeric) daily precipitation [mm],  
-#'   - `tmean_C` (numeric) daily mean air temperature [°C].  
-#'   Optional columns (e.g., `GCM`) are preserved and passed through to output.
+#' @param DailyWB data.table. The daily climate for the site, with no gaps
+#'   in the dates: `x` (longitude), `y` (latitude, decimal degrees), `date`
+#'   (Date), `GCM` (model or source name, kept in the output), `ppt_mm`
+#'   (precipitation, mm) and `tmean_C` (mean temperature, degrees C). For
+#'   `PET_Method = "Penman-Monteith"` it also needs `tmax_C` and `tmin_C`.
+#'   It must be a data.table: with a plain data frame the storage step makes
+#'   a list column and the function stops with an error, so convert it with
+#'   [data.table::as.data.table()] first. Required.
+#' @param point_params Data frame with one row. The site parameters, e.g.
+#'   one row of [get_nps_wbm_params()]: `Elev` (m), `Slope` and `Aspect`
+#'   (degrees), `SWC.Max` (soil water capacity, mm), `J.Temp` (Jennings
+#'   threshold temperature, degrees C) and, for Penman-Monteith, `y`
+#'   (latitude). Required.
+#' @param Direct_Frac Numeric from 0 to 1. The fraction of rain that goes
+#'   straight to runoff, skipping the soil. Default: `0`.
+#' @param Return_Rate Numeric from 0 to 1. The fraction of the storage
+#'   reservoir released as runoff each day.
+#'   * `1`: all surplus becomes runoff the same day.
+#'   * Less than 1: runoff is spread over the following days.
 #'
-#' @param point_params A single-row data frame/tibble of site parameters aligned
-#'   to the `DailyWB` time series with (at minimum) columns:  
-#'   - `Elev` (numeric) elevation [m],  
-#'   - `Aspect` (numeric) aspect [degrees 0–360],  
-#'   - `Slope` (numeric) slope [degrees],  
-#'   - `SWC.Max` (numeric) soil water storage capacity [mm],  
-#'   - `J.Temp` (numeric) Jennings temperature climatology [°C],  
-#'   - optionally `y` (latitude) if needed by PET/astronomical helpers.
+#'   Default: `1`.
+#' @param PET_mult Numeric. A factor that PET is multiplied by before the
+#'   soil water step, to correct a known bias. Default: `1`.
+#' @param Soil_mult Numeric. A factor that the soil water capacity
+#'   (`SWC.Max`) is multiplied by. Default: `1`.
+#' @param PET_Method String. The PET method, one of:
+#'   * `"Oudin"`: [get_OudinPET()], with the site's slope,
+#'     aspect and `Shade.Coeff`; 0 under snowpack.
+#'   * `"Hamon"`: [ET_Hamon_daily()], from temperature and day length.
+#'   * `"Penman-Monteith"`: [ET_PenmanMonteith_daily()], from maximum and
+#'     minimum temperature, with a wind speed of 2.2 m/s.
 #'
-#' @param Direct_Frac Numeric in [0,1]. Fraction of rainfall routed directly to
-#'   runoff (bypassing soil). Default `0`.
-#' @param Return_Rate Numeric in (0,1]. Daily fraction of the storage reservoir
-#'   released to runoff. `1` means full same-day release. Default `1`.
-#' @param PET_mult Numeric multiplier applied to PET to correct known bias.
-#'   Default `1`.
-#' @param Soil_mult Numeric multiplier applied to soil storage capacity
-#'   (`SWC.Max`). Default `1`.
-#' @param PET_Method Character; one of `c("Oudin","Hamon","Penman-Monteith")`.
-#'   Controls PET formulation. Default matches argument vector behavior; see
-#'   examples for explicit selection.
-#' @param hock_coef Numeric degree-day factor for melt (Hock). Default `4`.
-#'   (For context, Hock 2003 reports ~2.5 for Gooseberry Creek, Utah.)
-#' @param Snowpack.Init Numeric initial snowpack [mm water equivalent]. Default `0`.
-#' @param Soil.Init Numeric initial soil water content [mm]. Default `0`.
-#' @param Shade.Coeff Numeric shading coefficient used by Oudin PET variant.
-#'   Default `1`.
-#' @param T.Base Numeric base temperature for growing degree days [°C]. Default `0`.
+#'   Pass one value. The default, `c("Oudin", "Hamon", "Penman-Monteith")`,
+#'   stops with an error.
+#' @param hock_coef Numeric. The degree-day melt factor, in mm per degree C
+#'   per day. Hock (2003) reports about 2.5 for Gooseberry Creek, Utah.
+#'   Default: `4`.
+#' @param Snowpack.Init Numeric. The snowpack before the first day, in mm.
+#'   Default: `0`.
+#' @param Soil.Init Numeric. The soil water before the first day, in mm.
+#'   Default: `0` (empty).
+#' @param Shade.Coeff Numeric from 0 to 1. The shading factor for the Oudin
+#'   method. Default: `1` (no shade).
+#' @param T.Base Numeric. The base temperature for growing degree-days, in
+#'   degrees C. Default: `0`.
 #'
+#' @return A long data.table, returned invisibly (assign it), with one row
+#'   per day and variable: `date`, `x`, `y`, `GCM`, `vars` and `vals`. The
+#'   variables are `ppt_mm`, `RUNOFF`, `RAIN`, `SNOW`, `MELT`, `AET`,
+#'   `PET_mod`, `tmean_C`, `excess_wat` (water added to storage), `PACK`
+#'   (snowpack) and `SOIL`. All are in inches (despite the `ppt_mm` name),
+#'   except `tmean_C` in degrees C.
 #' @references
 #' Hock, R. (2003). Temperature index melt modelling in mountain areas.
-#' *Journal of Hydrology*, 282(1–4), 104–115. https://doi.org/10.1016/S0022-1694(03)00257-9
-#'
-#' 
-#' When set to default values (below), the model should run identical to the
-#' unmodified version: 
-#' Direct_Frac = 0,
-#' Return_Rate = 1, 
-#' PET_mult = 1, and 
-#' Soil_mult = 1
-#' 
-#' # Hock, 2003 (https://doi.org/10.1016/S0022-1694(03)00257-9)
-#    Melt factor for Goosebury Creek in Utah is 2.5
+#'   Journal of Hydrology, 282(1-4), 104-115.
+#'   <https://doi.org/10.1016/S0022-1694(03)00257-9>
 #' @export
+#' @seealso [run_NPS_WBM_points()] to run it for many points and models;
+#'   [get_nps_wbm_params()] for `point_params`; [runoff_routing_gw()] and
+#'   [runoff_routing_snow_fun()] to route the runoff.
+#' @examples
+#' # One made-up water year at one site
+#' dates <- seq(as.Date("2020-10-01"), as.Date("2021-09-30"), by = "day")
+#' doy <- as.numeric(format(dates, "%j"))
+#' set.seed(1)
+#' daily <- data.table::data.table(
+#'   x = -112.98, y = 37.2, GCM = "example", date = dates,
+#'   ppt_mm = ifelse(runif(length(dates)) < 0.3, rexp(length(dates), 0.08), 0),
+#'   tmean_C = 12 - 12 * cos(2 * pi * (doy - 20) / 365)
+#' )
+#' site <- data.frame(Elev = 1300, Slope = 5, Aspect = 180, SWC.Max = 50,
+#'                    J.Temp = 1.5, y = 37.2)
+#'
+#' wb <- nps_wbm(daily, site, PET_Method = "Oudin")
+#'
+#' # Water year totals, in inches
+#' totals <- wb[wb$vars %in% c("ppt_mm", "RUNOFF", "AET", "SNOW"), ]
+#' tapply(totals$vals, totals$vars, sum)
+
 nps_wbm <- function(DailyWB, 
                     point_params, 
                     Direct_Frac = 0, # CSU ADDITION

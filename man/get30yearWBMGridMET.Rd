@@ -2,9 +2,7 @@
 % Please edit documentation in R/get30yearWBMGridMET.R
 \name{get30yearWBMGridMET}
 \alias{get30yearWBMGridMET}
-\title{This function returns the 30-year statistic rasters (annual means) for the NPS gridded
-water balance mode based on user input area of interest, WBM variable(s), year ranges and GCMs and
-returns a raster stack of all .tifs}
+\title{30-year annual mean rasters of the gridded NPS water balance model}
 \usage{
 get30yearWBMGridMET(
   aoi,
@@ -18,27 +16,67 @@ get30yearWBMGridMET(
 )
 }
 \arguments{
-\item{aoi}{area of interest to return 30-year statistics. Should be an sf object}
+\item{aoi}{sf object. The area of interest to crop to, e.g. a buffered
+park boundary. Required.}
 
-\item{variable}{the WBM variables to pull data for, can be a single variable or list.}
+\item{variable}{Character vector. The WBM variables, e.g. \code{"runoff"},
+\code{"AET"}, \code{"soil_water"}, \code{"Deficit"}. Default: \code{"runoff"}.}
 
-\item{cf}{A list of the GCMs to pull data for}
+\item{cf}{Character vector. The future climate models, as
+\code{"<model>.<scenario>"}, e.g. \code{"CCSM4.rcp45"} (as picked by
+\code{select_cfs_deep_dive()} in wavadeepdive). Required.}
 
-\item{historic_years}{A character range of historic years separated by "_". Choose from: "1980_1999", "1980_2019", "1981_2010", "2000_2019"}
+\item{historic_years}{Character vector. The historical periods: any of
+\code{"1980_1999"}, \code{"1980_2019"}, \code{"1981_2010"} and \code{"2000_2019"}. Default:
+\code{"1981_2010"}.}
 
-\item{future_years}{A character range of future years separated by "_". Default is all future ranges: c("2040_2069", "2070_2099")}
+\item{future_years}{Character vector. The future periods: \code{"2040_2069"}
+and/or \code{"2070_2099"}. Default: \code{c("2040_2069", "2070_2099")}.}
 
-\item{save}{TRUE/FALSE, whether or not to save the raster stack output}
+\item{save}{Logical. Whether to write the stack to a GeoTIFF.
+\itemize{
+\item \code{TRUE}: writes \verb{<filename_prefix>_wbm_30yr_annual_rasters.tif} to
+\verb{<path>/wbm_gridmet_30_year/}, creating the folders if needed and
+replacing an existing file.
+\item \code{FALSE}: writes nothing.
+}
 
-\item{path}{directory to save raster stack to}
+Default: \code{TRUE}.}
 
-\item{filename_prefix}{a name to append to filename that describes the AOI for the saved raster stack}
+\item{path}{String. The folder that gets the \code{wbm_gridmet_30_year}
+subfolder when \code{save = TRUE}. Default: \code{all} in the shared data folder,
+see \code{\link[wavacore:wava_data_path]{wavacore::wava_data_path()}}, so a default call writes there.}
+
+\item{filename_prefix}{String. The start of the file name, describing the
+area (e.g. \code{"BRCA"}). Required when \code{save = TRUE}; not used otherwise.}
 }
 \value{
-A SpatRaster stack of all downloaded rasters
+A SpatRaster with one layer per file, named after the file
+(variable, model, period); values are annual means in mm.
 }
 \description{
-This function returns the 30-year statistic rasters (annual means) for the NPS gridded
-water balance mode based on user input area of interest, WBM variable(s), year ranges and GCMs and
-returns a raster stack of all .tifs
+Downloads the 30-year annual mean rasters of the gridded NPS water balance
+model (GridMET historical and MACA future runs, in mm) from the WBM
+summaries site
+(\url{http://screenedcleanedsummaries.s3-website-us-west-2.amazonaws.com/}),
+crops each to \code{aoi}, and stacks them, so it needs internet. One file is
+downloaded per variable, model and period, plus the historical ones.
+
+Models whose name contains MIROC-ESM are downloaded as
+\code{MIROC-ESM-CHEM_rcp85}, because the WBM has no MIROC-ESM RCP4.5 run.
+}
+\examples{
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
+# Downloads from the WBM summaries site, so it needs internet
+aoi <- sf::st_as_sf(sf::st_as_sfc(sf::st_bbox(
+  c(xmin = -113.1, ymin = 37.1, xmax = -112.8, ymax = 37.4), crs = 4326
+)))
+runoff_30yr <- get30yearWBMGridMET(aoi, variable = "runoff",
+                                   cf = c("CCSM4.rcp45", "CanESM2.rcp85"),
+                                   save = FALSE)
+names(runoff_30yr)
+\dontshow{\}) # examplesIf}
+}
+\seealso{
+\code{\link[=get_future_wbm]{get_future_wbm()}} and \code{\link[=get_wbm_grids]{get_wbm_grids()}} for daily WBM rasters.
 }

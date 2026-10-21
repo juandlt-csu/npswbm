@@ -1,48 +1,44 @@
-#' Extract NPS WBM parameters at point locations or as area-weighted grid-cell summaries
+#' @title Site parameters for the water balance model
 #'
 #' @description
-#' Retrieves key inputs for the NPS Water Balance Model (WBM)—elevation, slope,
-#' aspect, soil water storage capacity, and January temperature—either at exact
-#' point locations or as **area-weighted** means over grid cells intersecting
-#' those points within an AOI. Aspect is summarized using a weighted circular
-#' mean.
+#' Gets the water balance model's site parameters (elevation, slope, aspect,
+#' soil water capacity and Jennings threshold temperature) from the rasters
+#' loaded by [load_wbm_rasters()]. If `dem`, `soil` and `jtemp` aren't in the
+#' session yet, it calls `load_wbm_rasters(crs = terra::crs(points))` first,
+#' which creates them in the global environment.
 #'
-#' @details
-#' If the global rasters `dem`, `soil`, `slope`, `aspect`, and `jtemp` are not
-#' found in the session, the function calls `load_wbm_rasters(crs = st_crs(points))`
-#' to load them (projected to the CRS of `points`).  
+#' @param points sf object. The model points, e.g. GridMET cell centers,
+#'   with `x` and `y` columns (longitude and latitude) that match the climate
+#'   data, as [run_NPS_WBM_points()] needs. Required.
+#' @param area_weighted Logical. How the values are taken.
+#'   * `FALSE`: the raster values at each point.
+#'   * `TRUE`: area-weighted means over each `grid` cell that contains a point,
+#'     clipped to `aoi`, with [terra::extract()] (`weights = TRUE, exact =
+#'     TRUE`). Aspect is a weighted circular mean. Needs `aoi` and `grid`.
 #'
-#' - When `area_weighted = FALSE`, values are extracted at each input point. This
-#'   is the default.
-#' - When `area_weighted = TRUE`, you must supply both a polygon `aoi` and a
-#'   polygonal `grid` of the associated GridMET cells. The function (i) transforms 
-#'   `grid` to the CRS of `points` if needed, (ii) finds grid cells that 
-#'   intersect the points and lie within `aoi`, and (iii) computes area-weighted
-#'   means for elevation, slope, soil water capacity, and Jennings temperature 
-#'   using `terra::extract(..., weights = TRUE, exact = TRUE)`. Aspect is 
-#'   summarized with a weighted circular mean (cos/sin).
+#'   Default: `FALSE`.
+#' @param aoi sf object or `NULL`. The area of interest polygon the grid
+#'   cells are clipped to. Required when `area_weighted = TRUE` (stops with an
+#'   error otherwise); ignored when `FALSE`. Default: `NULL`.
+#' @param grid sf object or `NULL`. The grid cell polygons (e.g. the GridMET
+#'   cells from `get_climate_historic(return_grid = TRUE)` in wavadeepdive),
+#'   reprojected to the CRS of `points` if needed. Required when
+#'   `area_weighted = TRUE` (stops with an error otherwise); ignored when
+#'   `FALSE`. Default: `NULL`.
 #'
-#' @param points An `sf` point object: locations at which to extract WBM parameters.
-#' @param area_weighted Logical. If `FALSE` (default), extract values at points.
-#'   If `TRUE`, compute area-weighted summaries over intersecting `grid` cells
-#'   within `aoi`.
-#' @param aoi (Required when `area_weighted = TRUE`) An `sf` polygon defining the
-#'   area of interest used to clip intersecting grid cells.
-#' @param grid (Required when `area_weighted = TRUE`) An `sf` polygon grid used
-#'   for area-weighted aggregation. Will be transformed to `st_crs(points)` if
-#'   CRSs differ.
-#'
-#' @return
-#' A `data.table`/`data.frame` with WBM parameter columns:
-#' - `Elev` (elevation),
-#' - `Slope`,
-#' - `Aspect` (degrees 0–360; circular mean when area-weighted),
-#' - `SWC.Max` (soil water storage capacity),
-#' - `J.Temp` (Jennings temperature),
-#' plus the original attributes of `points` (when `area_weighted = FALSE`) or
-#' the non-geometry attributes of intersecting `grid` cells (when `TRUE`).
-#' 
+#' @return A data.table with one row per point (or per grid cell piece when
+#'   `area_weighted = TRUE`) and columns `Elev` (m), `Aspect` (degrees, 0-360),
+#'   `Slope` (degrees), `SWC.Max` (mm) and `J.Temp` (degrees C), plus the
+#'   columns of `points` (or of `grid` and `points` when area-weighted, with
+#'   the cell pieces' `geometry`).
 #' @export
+#' @seealso [load_wbm_rasters()]; [nps_wbm()] and [run_NPS_WBM_points()],
+#'   which use the parameters.
+#' @examplesIf file.exists(wavacore::wava_data_path("all", "elevation_cropped.tif"))
+#' pts <- data.frame(x = c(-112.98, -112.95), y = c(37.20, 37.25))
+#' pts <- sf::st_as_sf(pts, coords = c("x", "y"), crs = 4326, remove = FALSE)
+#' get_nps_wbm_params(pts)
+
 get_nps_wbm_params <- function(points, area_weighted = FALSE, aoi = NULL, grid = NULL) {
   
   if (!(exists("dem") && exists("soil")  && exists("jtemp"))) {

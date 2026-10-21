@@ -1,83 +1,115 @@
+#' @title Run the water balance model for many points and climate models
+#'
 #' @description
-#' Wrapper function that (1) derives site parameters for each input point (or
-#' area-weighted grid cell set), (2) subsets the provided daily climate
-#' time series by point and GCM, (3) runs `nps_wbm()` for every
-#' point–GCM combination, and (4) returns daily summaries averaged across
-#' points for each GCM. Optionally returns the final soil storage and
-#' snowpack states for reuse in subsequent runs.
+#' Runs [nps_wbm()] for every point and every climate model (`GCM`) in
+#' `climate_data`, and combines the results:
+#' 1. Gets the site parameters of each point with [get_nps_wbm_params()]
+#'    (unless `use_final = TRUE`, which uses `param_list`).
+#' 2. For each model and point, picks the point's rows of `climate_data` by
+#'    matching `x` and `y` and runs [nps_wbm()].
+#' 3. Averages the points for each day, variable and model: a plain mean, or
+#'    an area-weighted mean when `area_weighted = TRUE` (skipped when
+#'    `aggregate = FALSE`).
 #'
-#' @details
-#' Site parameters are obtained via `get_nps_wbm_params()` unless `param_list`
-#' is provided. When `area_weighted = FALSE`, parameters are extracted at exact 
-#' point locations. When `area_weighted = TRUE`, you must provide both `aoi`
-#' (polygon) and `grid` (polygonal grid) for area-weighted aggregation.
+#' It prints each model and point as it goes. Run time grows with points x
+#' models x days.
 #'
-#' For each GCM listed in `climate_data$GCM`, the function filters the
-#' daily records by the point's `x`/`y` and the current GCM, runs
-#' `nps_wbm()` with the chosen PET formulation and other controls, and
-#' stores outputs in a long table (mm → inches inside `nps_wbm()` for
-#' fluxes). Daily results are then averaged across points when 
-#' `area_weighted = FALSE`, or computed as area-weighted means when
-#' `area_weighted = TRUE` using normalized area weights.
+#' @param points sf object. The model points with `x` and `y` columns that
+#'   match `climate_data`, e.g. GridMET cell centers. Required.
+#' @param climate_data Data frame. Daily climate for every point and model:
+#'   `x`, `y`, `date`, `GCM`, `ppt_mm` and `tmean_C` (and `tmax_C`/`tmin_C`
+#'   for Penman-Monteith), e.g. from `get_climate_historic()` or
+#'   `get_climate_future()` in wavadeepdive with a `GCM` column. Required.
+#' @param Direct_Frac Numeric from 0 to 1. The fraction of rain that goes
+#'   straight to runoff; passed to [nps_wbm()]. Default: `0`.
+#' @param Return_Rate Numeric from 0 to 1. The daily release fraction of the
+#'   storage reservoir; passed to [nps_wbm()]. Default: `1`.
+#' @param PET_mult Numeric. The PET multiplier; passed to [nps_wbm()].
+#'   Default: `1`.
+#' @param Soil_mult Numeric. The soil water capacity multiplier; passed to
+#'   [nps_wbm()]. Default: `1`.
+#' @param PET_Method String. `"Oudin"`, `"Hamon"` or `"Penman-Monteith"`,
+#'   passed to [nps_wbm()]. Pass one value: the default, all three, stops
+#'   with an error.
+#' @param hock_coef Numeric. The degree-day melt factor, in mm per degree C
+#'   per day; passed to [nps_wbm()]. Default: `4`.
+#' @param Snowpack.Init Numeric. The snowpack before the first day, in mm,
+#'   for every point (replaced by the saved value when `use_final = TRUE`).
+#'   Default: `0`.
+#' @param Soil.Init Numeric. The soil water before the first day, in mm, for
+#'   every point (replaced by the saved value when `use_final = TRUE`).
+#'   Default: `0`.
+#' @param Shade.Coeff Numeric from 0 to 1. The shading factor for the Oudin
+#'   method; passed to [nps_wbm()]. Default: `1`.
+#' @param T.Base Numeric. The base temperature for growing degree-days;
+#'   passed to [nps_wbm()]. Default: `0`.
+#' @param area_weighted Logical. Whether the points stand for parts of grid
+#'   cells.
+#'   * `TRUE`: parameters are area-weighted over `grid` within `aoi` (see
+#'     [get_nps_wbm_params()]) and the daily results are area-weighted means.
+#'     Needs `aoi` and `grid`.
+#'   * `FALSE`: parameters at the points and plain means.
 #'
-#' If `ret_final_cond = TRUE`, the function also tracks the final‐day
-#' soil storage and snowpack (`SOIL`, `PACK`) for each point and returns
-#' them alongside the main output. If `use_final = TRUE`, those saved
-#' states are used to initialize the next run's `Soil.Init` and
-#' `Snowpack.Init`, and `param_list` must be provided containing the
-#' final conditions from a previous run.
+#'   Default: `FALSE`.
+#' @param aoi sf object or `NULL`. The area of interest polygon; required
+#'   when `area_weighted = TRUE`. Default: `NULL`.
+#' @param grid sf object or `NULL`. The grid cell polygons; required when
+#'   `area_weighted = TRUE`. Default: `NULL`.
+#' @param ret_final_cond Logical. Whether to also return each point's last
+#'   soil water and snowpack, to start a later run from them.
+#'   * `TRUE`: returns a list of the results and the point parameters with
+#'     `final_soil` and `final_snowpack` columns. These come from the
+#'     [nps_wbm()] output, so they are in inches.
+#'   * `FALSE`: returns only the results.
 #'
-#' @param points An `sf` point object for model locations.
-#' @param climate_data A data frame/tibble of daily climate for all points
-#'   and GCMs. Must include, at minimum:  
-#'   - `x` (lon, decimal degrees), `y` (lat, decimal degrees),  
-#'   - `date` (Date; daily, regular),  
-#'   - `ppt_mm` (precipitation [mm/day]),  
-#'   - `tmean_C` (mean air temperature [°C]),  
-#'   - `GCM` (character model/scenario identifier).  
-#'   Additional columns are passed through where relevant.
-#' @param Direct_Frac Fraction of rainfall routed directly to runoff
-#'   (0–1). Default `0`.
-#' @param Return_Rate Daily fraction of the storage reservoir released to
-#'   runoff (0–1], where `1` = full same-day release. Default `1`.
-#' @param PET_mult Multiplicative PET bias adjustment. Default `1`.
-#' @param Soil_mult Multiplicative adjustment to soil storage capacity
-#'   (`SWC.Max`). Default `1`.
-#' @param PET_Method Character; one of `c("Oudin","Hamon","Penman-Monteith")`.
-#'   Controls PET formulation.
-#' @param hock_coef Degree-day melt factor for Hock melt model. Default `4`.
-#' @param Snowpack.Init Initial snowpack water equivalent [mm]. Default `0`.
-#' @param Soil.Init Initial soil water content [mm]. Default `0`.
-#' @param Shade.Coeff Shading coefficient used by Oudin PET variant.
-#'   Default `1`.
-#' @param T.Base Base temperature for growing degree days [°C]. Default `0`.
-#' @param area_weighted Logical; if `TRUE`, compute area-weighted site
-#'   parameters over `grid` within `aoi`, and return area-weighted daily
-#'   summaries using normalized area weights. Default `FALSE`.
-#' @param aoi `sf` polygon AOI used when `area_weighted = TRUE`. Default `NULL`.
-#' @param grid `sf` polygonal gridMET grids used for area-weighted extraction when
-#'   `area_weighted = TRUE`. Default `NULL`.
-#' @param ret_final_cond Logical; if `TRUE`, also return a second object
-#'   with per-point final soil and snowpack states. Default `FALSE`.
-#' @param use_final Logical; if `TRUE`, initialize each point's run with
-#'   its stored final soil and snowpack states (requires `param_list` 
-#'   containing final conditions from a previous run). Default `FALSE`.
-#' @param param_list Optional data frame containing pre-computed site parameters
-#'   with final soil and snowpack conditions. Required when `use_final = TRUE`.
-#'   When provided, skips parameter derivation via `get_nps_wbm_params()`.
-#'   Default `NULL`.
-#' @param aggregate If TRUE, summarizes each variable for AOI after running. If 
-#'   FALSE, returns water balance results for each grid cell retaining x and y
-#'   
-#' @return When `ret_final_cond = FALSE`, returns a data frame of daily water
-#'   balance results averaged across points (or area-weighted when 
-#'   `area_weighted = TRUE`) for each GCM. When `ret_final_cond = TRUE`, 
-#'   returns a list with two elements: the daily results data frame and 
-#'   the points parameters data frame containing final soil and snowpack 
-#'   states for subsequent runs.
-#'   
-#' @note Performance scales with (#points × #GCMs × #days).
+#'   Default: `FALSE`.
+#' @param use_final Logical. Whether to start each point from saved
+#'   conditions.
+#'   * `TRUE`: uses `param_list` as the point parameters and its
+#'     `final_soil` and `final_snowpack` as `Soil.Init` and `Snowpack.Init`.
+#'     Note that those are in inches while the model expects mm.
+#'   * `FALSE`: uses `Soil.Init` and `Snowpack.Init` for every point.
+#'
+#'   Default: `FALSE`.
+#' @param param_list Data frame or `NULL`. Point parameters with
+#'   `final_soil` and `final_snowpack`, from an earlier run with
+#'   `ret_final_cond = TRUE`. Required when `use_final = TRUE`; ignored
+#'   otherwise. Default: `NULL`.
+#' @param aggregate Logical. Whether to combine the points.
+#'   * `TRUE`: one value per day, variable and model.
+#'   * `FALSE`: one value per point, day, variable and model, keeping `x` and
+#'     `y`.
+#'
+#'   Default: `TRUE`.
+#'
+#' @return A data.table with one row per day and model (and point when
+#'   `aggregate = FALSE`), with `date`, `GCM` and the variables in inches
+#'   (degrees C for temperature): `precip_in_wbm`, `runoff_in_wbm`,
+#'   `rain_in_wbm`, `snow_in_wbm`, `melt_in_wbm`, `aet_in_wbm`,
+#'   `pet_in_wbm`, `tmean_C`, `excess_water_in_wbm`, `snowpack_in_wbm` and
+#'   `soil_in_wbm`. With `ret_final_cond = TRUE`, a list of that table and
+#'   the point parameters.
 #' @export
+#' @seealso [nps_wbm()], which runs each point; [get_nps_wbm_params()];
+#'   [runoff_routing_gw()] and [runoff_routing_snow_fun()] to route
+#'   `runoff_in_wbm`.
+#' @examplesIf file.exists(wavacore::wava_data_path("all", "elevation_cropped.tif"))
+#' # Two points with the same made-up climate for one water year
+#' pts <- data.frame(x = c(-112.98, -112.95), y = c(37.20, 37.25))
+#' pts <- sf::st_as_sf(pts, coords = c("x", "y"), crs = 4326, remove = FALSE)
+#'
+#' dates <- seq(as.Date("2020-10-01"), as.Date("2021-09-30"), by = "day")
+#' doy <- as.numeric(format(dates, "%j"))
+#' set.seed(1)
+#' ppt <- ifelse(runif(length(dates)) < 0.3, rexp(length(dates), 0.08), 0)
+#' climate <- do.call(rbind, lapply(seq_len(nrow(pts)), function(i) {
+#'   data.frame(x = pts$x[i], y = pts$y[i], GCM = "example", date = dates,
+#'              ppt_mm = ppt, tmean_C = 12 - 12 * cos(2 * pi * (doy - 20) / 365))
+#' }))
+#'
+#' wb <- run_NPS_WBM_points(pts, climate, PET_Method = "Oudin")
+#' colSums(wb[, c("precip_in_wbm", "runoff_in_wbm", "aet_in_wbm")])
+
 run_NPS_WBM_points <- function(points, 
                                climate_data,
                                Direct_Frac = 0, 

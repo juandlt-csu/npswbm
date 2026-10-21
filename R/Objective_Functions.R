@@ -14,19 +14,43 @@
 #  https://www.hec.usace.army.mil/confluence/hmsdocs/hmstrm/calibration/calibration-summary-statistics
 
 
-#' Nash-Sutcliffe Efficiency (NSE)
-#' @param obs Vector of observed values
-#' @param sim Vector of simulated/modeled values
-#' @return A single numeric value representing the NSE
-#' 
-#' NSE Interpretation
-#' 1.0Perfect match between model and observations.
-#' > 0.75Excellent fit; highly reliable for decision making.
-#' 0.5 to 0.75Satisfactory to Good fit.
-#' 0.0 to 0.5Marginal fit; the model captures some trends but has high error.
-#' < 0.0Poor fit; you would be better off just using the average flow.
-#' 
+#' @title Nash-Sutcliffe efficiency (NSE)
+#'
+#' @description
+#' Calculates the Nash-Sutcliffe efficiency of simulated against observed
+#' values: `1 - sum((obs - sim)^2) / sum((obs - mean(obs))^2)`. 1 is a
+#' perfect match; above 0.75 is an excellent fit; 0.5 to 0.75 satisfactory to
+#' good; 0 to 0.5 marginal; below 0 the mean of the observations would do
+#' better (Moriasi et al. 2007).
+#'
+#' The metrics are summarized at
+#' <https://www.hec.usace.army.mil/confluence/hmsdocs/hmstrm/calibration/calibration-summary-statistics>.
+#'
+#' @param obs Numeric vector. Observed values, e.g. daily streamflow at a
+#'   gage. Pairs where `obs` or `sim` is `NA` are dropped first. Required.
+#' @param sim Numeric vector. Simulated values, the same length as `obs`.
+#'   Required.
+#'
+#' @return A number from minus infinity to 1. Returns `-9999` (a penalty
+#'   for optimizers) when no pairs are left or the observations are all the
+#'   same.
+#' @references
+#' Moriasi, D.N. et al. (2007). Model evaluation guidelines for systematic
+#'   quantification of accuracy in watershed simulations. Transactions of the
+#'   ASABE, 50(3), 885-900.
+#'
+#' Legates, D.R., and McCabe, G.J. (1999). Evaluating the use of
+#'   "goodness-of-fit" measures in hydrologic and hydroclimatic model
+#'   validation. Water Resources Research, 35(1), 233-241.
 #' @export
+#' @seealso The other fit metrics: [NSE()], [RSR()], [PBIAS()], [COD()],
+#'   [SSE()], [RMSE()], [MAE()]; [test_model_fit()], which uses them to score
+#'   a routing run.
+#' @examples
+#' obs <- c(2.1, 3.4, 8.0, 5.2, 3.3, NA, 2.4)
+#' sim <- c(2.4, 3.1, 7.2, 5.9, 3.0, 2.8, 2.2)
+#' NSE(obs, sim)
+
 NSE <- function(obs, sim) {
   
   # Remove any pairs where either obs or sim is NA
@@ -58,17 +82,42 @@ NSE <- function(obs, sim) {
 
 # RSR (RMSE-observations standard deviation ratio)
 # RSR standardizes the RMSE using the standard deviation of the observations.
-#' RMSE-observations standard deviation ratio (RSR)
-#' @param obs Vector of observed values
-#' @param sim Vector of simulated/modeled values
-#' @return A single numeric value representing the RSR
-#' 
-#' RSR Interpretation
-#' 0.00 to 0.50: Very Good fit.
-#' 0.50 to 0.60: Good fit.
-#' 0.60 to 0.70: Satisfactory fit.
-#' > 0.70: Unsatisfactory fit.
+#' @title Ratio of RMSE to the standard deviation of the observations (RSR)
+#'
+#' @description
+#' Calculates the RMSE divided by the standard deviation of the
+#' observations (both as root sums of squares). 0 to 0.5 is a very good fit;
+#' 0.5 to 0.6 good; 0.6 to 0.7 satisfactory; above 0.7 unsatisfactory
+#' (Moriasi et al. 2007).
+#'
+#' The metrics are summarized at
+#' <https://www.hec.usace.army.mil/confluence/hmsdocs/hmstrm/calibration/calibration-summary-statistics>.
+#'
+#' @param obs Numeric vector. Observed values, e.g. daily streamflow at a
+#'   gage. Pairs where `obs` or `sim` is `NA` are dropped first. Required.
+#' @param sim Numeric vector. Simulated values, the same length as `obs`.
+#'   Required.
+#'
+#' @return A number of 0 or more (lower is better). Returns `1e10` (a
+#'   penalty for optimizers) when no pairs are left or the observations are
+#'   all the same.
+#' @references
+#' Moriasi, D.N. et al. (2007). Model evaluation guidelines for systematic
+#'   quantification of accuracy in watershed simulations. Transactions of the
+#'   ASABE, 50(3), 885-900.
+#'
+#' Legates, D.R., and McCabe, G.J. (1999). Evaluating the use of
+#'   "goodness-of-fit" measures in hydrologic and hydroclimatic model
+#'   validation. Water Resources Research, 35(1), 233-241.
 #' @export
+#' @seealso The other fit metrics: [NSE()], [RSR()], [PBIAS()], [COD()],
+#'   [SSE()], [RMSE()], [MAE()]; [test_model_fit()], which uses them to score
+#'   a routing run.
+#' @examples
+#' obs <- c(2.1, 3.4, 8.0, 5.2, 3.3, NA, 2.4)
+#' sim <- c(2.4, 3.1, 7.2, 5.9, 3.0, 2.8, 2.2)
+#' RSR(obs, sim)
+
 RSR <- function(obs, sim) {
   data_clean <- stats::na.omit(data.frame(obs, sim))
   if (nrow(data_clean) == 0) return(1e10) # Return high penalty for bad fit
@@ -86,17 +135,41 @@ RSR <- function(obs, sim) {
 # Measures the average tendency of the simulated data to be larger or smaller 
 # than their observed counterparts.
 
-#' Percent Bias (PBIAS)
-#' @param obs Vector of observed values
-#' @param sim Vector of simulated/modeled values
-#' @return Percent bias (percentage)
-#' 
-#' PBIAS Interpretation (Streamflow)
-#' < ±10%: Very Good.
-#' ±10% to ±15%: Good.
-#' ±15% to ±25%: Satisfactory.
-#' > ±25%: Unsatisfactory.
+#' @title Percent bias (PBIAS)
+#'
+#' @description
+#' Calculates the percent bias: `100 * sum(obs - sim) / sum(obs)`.
+#' Positive values mean the model underestimates, negative values that it
+#' overestimates. For streamflow, within 10% is very good; 10-15% good;
+#' 15-25% satisfactory; beyond 25% unsatisfactory (Moriasi et al. 2007).
+#'
+#' The metrics are summarized at
+#' <https://www.hec.usace.army.mil/confluence/hmsdocs/hmstrm/calibration/calibration-summary-statistics>.
+#'
+#' @param obs Numeric vector. Observed values, e.g. daily streamflow at a
+#'   gage. Pairs where `obs` or `sim` is `NA` are dropped first. Required.
+#' @param sim Numeric vector. Simulated values, the same length as `obs`.
+#'   Required.
+#'
+#' @return A percentage (can be negative). Returns `1e10` (a penalty for
+#'   optimizers) when no pairs are left or the observations sum to 0.
+#' @references
+#' Moriasi, D.N. et al. (2007). Model evaluation guidelines for systematic
+#'   quantification of accuracy in watershed simulations. Transactions of the
+#'   ASABE, 50(3), 885-900.
+#'
+#' Legates, D.R., and McCabe, G.J. (1999). Evaluating the use of
+#'   "goodness-of-fit" measures in hydrologic and hydroclimatic model
+#'   validation. Water Resources Research, 35(1), 233-241.
 #' @export
+#' @seealso The other fit metrics: [NSE()], [RSR()], [PBIAS()], [COD()],
+#'   [SSE()], [RMSE()], [MAE()]; [test_model_fit()], which uses them to score
+#'   a routing run.
+#' @examples
+#' obs <- c(2.1, 3.4, 8.0, 5.2, 3.3, NA, 2.4)
+#' sim <- c(2.4, 3.1, 7.2, 5.9, 3.0, 2.8, 2.2)
+#' PBIAS(obs, sim)
+
 PBIAS <- function(obs, sim) {
   data_clean <- stats::na.omit(data.frame(obs, sim))
   if (nrow(data_clean) == 0) return(1e10)
@@ -117,11 +190,40 @@ PBIAS <- function(obs, sim) {
 # Describes the proportion of the variance in measured data explained by the 
 # model.
 
-#' Coefficient of Determination (R^2)
-#' @param obs Vector of observed values
-#' @param sim Vector of simulated/modeled values
-#' @return Value between 0 and 1.
+#' @title Coefficient of determination (R squared)
+#'
+#' @description
+#' Calculates the squared Pearson correlation between simulated and
+#' observed values: the share of the variance in the observations the model
+#' explains (Legates and McCabe 1999).
+#'
+#' The metrics are summarized at
+#' <https://www.hec.usace.army.mil/confluence/hmsdocs/hmstrm/calibration/calibration-summary-statistics>.
+#'
+#' @param obs Numeric vector. Observed values, e.g. daily streamflow at a
+#'   gage. Pairs where `obs` or `sim` is `NA` are dropped first. Required.
+#' @param sim Numeric vector. Simulated values, the same length as `obs`.
+#'   Required.
+#'
+#' @return A number from 0 to 1 (higher is better). Returns `0` when fewer
+#'   than 2 pairs are left or either series doesn't vary.
+#' @references
+#' Moriasi, D.N. et al. (2007). Model evaluation guidelines for systematic
+#'   quantification of accuracy in watershed simulations. Transactions of the
+#'   ASABE, 50(3), 885-900.
+#'
+#' Legates, D.R., and McCabe, G.J. (1999). Evaluating the use of
+#'   "goodness-of-fit" measures in hydrologic and hydroclimatic model
+#'   validation. Water Resources Research, 35(1), 233-241.
 #' @export
+#' @seealso The other fit metrics: [NSE()], [RSR()], [PBIAS()], [COD()],
+#'   [SSE()], [RMSE()], [MAE()]; [test_model_fit()], which uses them to score
+#'   a routing run.
+#' @examples
+#' obs <- c(2.1, 3.4, 8.0, 5.2, 3.3, NA, 2.4)
+#' sim <- c(2.4, 3.1, 7.2, 5.9, 3.0, 2.8, 2.2)
+#' COD(obs, sim)
+
 COD <- function(obs, sim) {
   data_clean <- stats::na.omit(data.frame(obs, sim))
   if (nrow(data_clean) < 2) return(0) # Need at least 2 points for correlation
@@ -141,11 +243,39 @@ COD <- function(obs, sim) {
 # SSE (Sum of Squared Errors)
 # A simple measure of the total deviation between the model and observations.
 
-#' Sum of Squared Errors (SSE)
-#' @param obs Vector of observed values
-#' @param sim Vector of simulated/modeled values
-#' @return Sum of squares. Lower is better.
+#' @title Sum of squared errors (SSE)
+#'
+#' @description
+#' Calculates the sum of squared differences between simulated and
+#' observed values.
+#'
+#' The metrics are summarized at
+#' <https://www.hec.usace.army.mil/confluence/hmsdocs/hmstrm/calibration/calibration-summary-statistics>.
+#'
+#' @param obs Numeric vector. Observed values, e.g. daily streamflow at a
+#'   gage. Pairs where `obs` or `sim` is `NA` are dropped first. Required.
+#' @param sim Numeric vector. Simulated values, the same length as `obs`.
+#'   Required.
+#'
+#' @return A number of 0 or more, in squared data units (lower is better).
+#'   Returns `1e10` (a penalty for optimizers) when no pairs are left.
+#' @references
+#' Moriasi, D.N. et al. (2007). Model evaluation guidelines for systematic
+#'   quantification of accuracy in watershed simulations. Transactions of the
+#'   ASABE, 50(3), 885-900.
+#'
+#' Legates, D.R., and McCabe, G.J. (1999). Evaluating the use of
+#'   "goodness-of-fit" measures in hydrologic and hydroclimatic model
+#'   validation. Water Resources Research, 35(1), 233-241.
 #' @export
+#' @seealso The other fit metrics: [NSE()], [RSR()], [PBIAS()], [COD()],
+#'   [SSE()], [RMSE()], [MAE()]; [test_model_fit()], which uses them to score
+#'   a routing run.
+#' @examples
+#' obs <- c(2.1, 3.4, 8.0, 5.2, 3.3, NA, 2.4)
+#' sim <- c(2.4, 3.1, 7.2, 5.9, 3.0, 2.8, 2.2)
+#' SSE(obs, sim)
+
 SSE <- function(obs, sim) {
   data_clean <- stats::na.omit(data.frame(obs, sim))
   if (nrow(data_clean) == 0) return(1e10)
@@ -158,11 +288,39 @@ SSE <- function(obs, sim) {
 # RMSE (Root Mean Square Error)
 # Commonly used to express the magnitude of error in the same units as the data.
 
-#' Root Mean Square Error (RMSE)
-#' @param obs Vector of observed values
-#' @param sim Vector of simulated/modeled values
-#' @return Error in data units. Lower is better.
+#' @title Root mean square error (RMSE)
+#'
+#' @description
+#' Calculates the root mean square error between simulated and observed
+#' values, in the units of the data.
+#'
+#' The metrics are summarized at
+#' <https://www.hec.usace.army.mil/confluence/hmsdocs/hmstrm/calibration/calibration-summary-statistics>.
+#'
+#' @param obs Numeric vector. Observed values, e.g. daily streamflow at a
+#'   gage. Pairs where `obs` or `sim` is `NA` are dropped first. Required.
+#' @param sim Numeric vector. Simulated values, the same length as `obs`.
+#'   Required.
+#'
+#' @return A number of 0 or more, in data units (lower is better). Returns
+#'   `1e10` (a penalty for optimizers) when no pairs are left.
+#' @references
+#' Moriasi, D.N. et al. (2007). Model evaluation guidelines for systematic
+#'   quantification of accuracy in watershed simulations. Transactions of the
+#'   ASABE, 50(3), 885-900.
+#'
+#' Legates, D.R., and McCabe, G.J. (1999). Evaluating the use of
+#'   "goodness-of-fit" measures in hydrologic and hydroclimatic model
+#'   validation. Water Resources Research, 35(1), 233-241.
 #' @export
+#' @seealso The other fit metrics: [NSE()], [RSR()], [PBIAS()], [COD()],
+#'   [SSE()], [RMSE()], [MAE()]; [test_model_fit()], which uses them to score
+#'   a routing run.
+#' @examples
+#' obs <- c(2.1, 3.4, 8.0, 5.2, 3.3, NA, 2.4)
+#' sim <- c(2.4, 3.1, 7.2, 5.9, 3.0, 2.8, 2.2)
+#' RMSE(obs, sim)
+
 RMSE <- function(obs, sim) {
   data_clean <- stats::na.omit(data.frame(obs, sim))
   if (nrow(data_clean) == 0) return(1e10)
@@ -174,11 +332,40 @@ RMSE <- function(obs, sim) {
 # MAE (Mean Absolute Error)
 # Similar to RMSE but less sensitive to extreme outliers/outlier peaks.
 
-#' Mean Absolute Error (MAE)
-#' @param obs Vector of observed values
-#' @param sim Vector of simulated/modeled values
-#' @return Mean error in data units. Lower is better.
+#' @title Mean absolute error (MAE)
+#'
+#' @description
+#' Calculates the mean absolute difference between simulated and observed
+#' values. Like RMSE, but less affected by a few large errors such as
+#' missed peaks.
+#'
+#' The metrics are summarized at
+#' <https://www.hec.usace.army.mil/confluence/hmsdocs/hmstrm/calibration/calibration-summary-statistics>.
+#'
+#' @param obs Numeric vector. Observed values, e.g. daily streamflow at a
+#'   gage. Pairs where `obs` or `sim` is `NA` are dropped first. Required.
+#' @param sim Numeric vector. Simulated values, the same length as `obs`.
+#'   Required.
+#'
+#' @return A number of 0 or more, in data units (lower is better). Returns
+#'   `1e10` (a penalty for optimizers) when no pairs are left.
+#' @references
+#' Moriasi, D.N. et al. (2007). Model evaluation guidelines for systematic
+#'   quantification of accuracy in watershed simulations. Transactions of the
+#'   ASABE, 50(3), 885-900.
+#'
+#' Legates, D.R., and McCabe, G.J. (1999). Evaluating the use of
+#'   "goodness-of-fit" measures in hydrologic and hydroclimatic model
+#'   validation. Water Resources Research, 35(1), 233-241.
 #' @export
+#' @seealso The other fit metrics: [NSE()], [RSR()], [PBIAS()], [COD()],
+#'   [SSE()], [RMSE()], [MAE()]; [test_model_fit()], which uses them to score
+#'   a routing run.
+#' @examples
+#' obs <- c(2.1, 3.4, 8.0, 5.2, 3.3, NA, 2.4)
+#' sim <- c(2.4, 3.1, 7.2, 5.9, 3.0, 2.8, 2.2)
+#' MAE(obs, sim)
+
 MAE <- function(obs, sim) {
   data_clean <- stats::na.omit(data.frame(obs, sim))
   if (nrow(data_clean) == 0) return(1e10)

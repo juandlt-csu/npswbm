@@ -2,25 +2,55 @@
 % Please edit documentation in R/ET_PenmanMonteith_daily.R
 \name{ET_PenmanMonteith_daily}
 \alias{ET_PenmanMonteith_daily}
-\title{## This version of the NPS water balance model functions are based on:
-## Dave Thoma's water balance Excel spreadsheet model and were originally
-## created 10/30/2019 by ARC with subsequent updates 4/14/21 by MGS}
+\title{Penman-Monteith daily reference evapotranspiration}
 \usage{
 ET_PenmanMonteith_daily(x, elev, lat, wind = 2.2)
 }
 \arguments{
-\item{x}{A daily time series data frame containing Date (date object), tmax_C (deg C), tmin_C (deg C), srad (MJ m^-2 day^-1). Optionally contains RHmax (percent), RHmin (percent), vp (kPa), and wind (m/s).}
+\item{x}{Data frame. A daily time series with \code{tmax_C} and \code{tmin_C}
+(degrees C) and \code{doy} (day of year). Optional: \code{vp} (actual vapor
+pressure, kPa) and \code{wind} (m/s, used only when \code{wind = NULL}).
+Required.}
 
-\item{elev}{Elevation of the site (m).}
+\item{elev}{Numeric. The elevation of the site, in meters. Required.}
 
-\item{lat}{Latitude of the site (degrees).}
+\item{lat}{Numeric. The latitude of the site, in degrees. Required.}
 
-\item{wind}{(optional) An estimated value for daily average wind speeds (m/s). Use if input data frame does not contain daily wind speed values.
-Default at 2.2 m/s (5mph)}
+\item{wind}{Numeric or \code{NULL}. The daily mean wind speed, in m/s.
+\itemize{
+\item A number: used for every day.
+\item \code{NULL}: uses \code{x$wind}.
+}
+
+Default: \code{2.2} (about 5 mph).}
+}
+\value{
+A numeric vector of daily reference evapotranspiration in mm, one
+value per row of \code{x}.
 }
 \description{
-Penman-Monteith Daily PET
+Calculates daily reference evapotranspiration (mm) with the FAO
+Penman-Monteith method, from daily maximum and minimum temperature,
+elevation, latitude and wind speed. One of the PET methods of \code{\link[=nps_wbm]{nps_wbm()}}
+(\code{PET_Method = "Penman-Monteith"}).
+
+Incoming solar radiation is taken as the clear-sky radiation for the day
+of year, latitude and elevation; an \code{srad} column in \code{x} is not used.
+Actual vapor pressure comes from \code{x$vp} if present, otherwise from the
+saturation vapor pressure at the minimum temperature (relative humidity
+columns currently cause an error, so leave \code{RHmax} and \code{RHmin} out).
+
+These model functions are based on Dave Thoma's water balance spreadsheet
+model; they were first written on 2019-10-30 by ARC and updated on
+2021-04-14 by MGS.
 }
-\details{
-Calculates PET (mm) from daily Tmax, Tmin, solar radiation, elevation, and latitude, according to the Penman-Monteith method. May also use daily maximum and minimum relative humidity, atmospheric vapor pressure, and wind speeds.
+\examples{
+days <- data.frame(doy = c(15, 105, 196, 288),
+                   tmax_C = c(5, 18, 33, 20),
+                   tmin_C = c(-8, 2, 16, 4))
+ET_PenmanMonteith_daily(days, elev = 1300, lat = 37.2)
+}
+\seealso{
+\code{\link[=ET_Hamon_daily]{ET_Hamon_daily()}} and \code{\link[=get_OudinPET]{get_OudinPET()}}, the other PET methods;
+\code{\link[=nps_wbm]{nps_wbm()}}.
 }

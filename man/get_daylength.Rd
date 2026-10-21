@@ -2,21 +2,31 @@
 % Please edit documentation in R/get_daylength.R
 \name{get_daylength}
 \alias{get_daylength}
-\title{## This version of the NPS water balance model functions are based on:
-## Dave Thoma's water balance Excel spreadsheet model and were originally
-## created 10/30/2019 by ARC with subsequent updates 4/14/21 by MGS}
+\title{Day length for dates at a latitude}
 \usage{
 get_daylength(dates, lat)
 }
 \arguments{
-\item{dates}{A series of dates containing year, month, and day}
+\item{dates}{Date vector (or strings like \code{"2021-06-21"}). The days.
+Required.}
 
-\item{lat}{Latitude (degrees)}
+\item{lat}{Numeric. The latitude in degrees, one value or one per date.
+Required.}
+}
+\value{
+A numeric vector of day lengths in hours, one per date.
 }
 \description{
-Daylength
+Returns the day length in hours for each date at the given latitude, with
+\code{\link[geosphere:daylength]{geosphere::daylength()}}. \code{\link[=nps_wbm]{nps_wbm()}} uses it for the Hamon PET method.
+
+These model functions are based on Dave Thoma's water balance spreadsheet
+model; they were first written on 2019-10-30 by ARC and updated on
+2021-04-14 by MGS.
 }
-\details{
-Returns daylength in hours for a series of dates, based on latitude. Calls 
-the 'geosphere' package.
+\examples{
+get_daylength(as.Date(c("2021-03-20", "2021-06-21", "2021-12-21")), lat = 37.2)
+}
+\seealso{
+\code{\link[=ET_Hamon_daily]{ET_Hamon_daily()}}, which uses it.
 }

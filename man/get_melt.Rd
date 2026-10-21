@@ -2,26 +2,50 @@
 % Please edit documentation in R/get_melt.R
 \name{get_melt}
 \alias{get_melt}
-\title{## This version of the NPS water balance model functions are based on:
-## Dave Thoma's water balance Excel spreadsheet model and were originally
-## created 10/30/2019 by ARC with subsequent updates 4/14/21 by MGS}
+\title{Daily snowmelt (degree-day method)}
 \usage{
 get_melt(tmean, jtemp, hock, snow, sp.0 = NULL)
 }
 \arguments{
-\item{tmean}{A vector of daily mean temperatures (deg C).}
+\item{tmean}{Numeric vector. The daily mean temperature, in degrees C.
+Required.}
 
-\item{jtemp}{the Jennings temperature extracted from the raster based on latitude and longitude.}
+\item{jtemp}{Numeric vector. The Jennings threshold temperature, in
+degrees C, one value per day (repeat the site value). Required.}
 
-\item{hock}{A melt factor of daily snowmelt when warm enough to melt.}
+\item{hock}{Numeric. The melt factor, in mm per degree C per day (e.g.
+\code{4}, the \code{\link[=nps_wbm]{nps_wbm()}} default). Required.}
 
-\item{snow}{A time series vector of snowfall values.}
+\item{snow}{Numeric vector. Daily snowfall, in mm (from \code{\link[=get_snow]{get_snow()}}).
+Required.}
 
-\item{sp.0}{(optional) Initial snowpack value. Default is 0.}
+\item{sp.0}{Numeric or \code{NULL}. The snowpack before the first day, in mm.
+\code{NULL} uses 0. Default: \code{NULL}.}
+}
+\value{
+A numeric vector of daily melt, in mm.
 }
 \description{
-Melt
+Calculates daily snowmelt from mean temperature with a degree-day (Hock)
+melt factor, tracking the snowpack as it goes. Snow melts when
+\code{tmean} is at least \code{jtemp - 3} and there is snowpack; the melt is
+\code{(tmean - (jtemp - 3)) * hock}, but never more than the snowpack of the
+day before.
+
+These model functions are based on Dave Thoma's water balance spreadsheet
+model; they were first written on 2019-10-30 by ARC and updated on
+2021-04-14 by MGS.
 }
-\details{
-Calculates the amount of snowmelt at time steps from snowpack, temperature, and Hock melt factor.
+\examples{
+tmean <- c(-6, -4, -1, 2, 5, 8)
+snow <- c(20, 15, 5, 0, 0, 0)
+get_melt(tmean, jtemp = rep(1.5, 6), hock = 4, snow = snow)
+}
+\references{
+Hock, R. (2003). Temperature index melt modelling in mountain areas.
+Journal of Hydrology, 282(1-4), 104-115.
+\url{https://doi.org/10.1016/S0022-1694(03)00257-9}
+}
+\seealso{
+\code{\link[=get_snowpack]{get_snowpack()}}, which uses the melt; \code{\link[=get_snow]{get_snow()}}.
 }

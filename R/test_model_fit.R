@@ -1,22 +1,87 @@
-
-###############################################################################
-#' test_model_fit run model for calibration optimization function or on set
-#' of fitted parameters
+#' @title Score a model run against observations
 #'
-#' @param params Vector containing parameters to optimize, should be only arguments in calibration function
-#' @param calibration_function function to optimize, only inputs should be params
-#' @param calibration_function_args arguments for calibration function
-#' @param result_col string column name of result if calibration function returns multiple columns
-#' @param obs_vals array of observations, should be same length as model output
-#' @param date array of dates, should be same length as model output and observations. Optional
-#' @param obj_fun The objective function to be minimized/maximized (e.g., NSE, SSE, MAE).
-#' @param time_ag Character string specifying the time aggregation ("Daily", "Monthly", or "Annual").
-#' @param return_dat Logical indicating whether to return the modeled data.
-#' @param silence Logical indicating whether to silence return of obj result
-#' @param ... Additional arguments passed to the objective function.
+#' @description
+#' Runs a model (usually a routing function) and scores its output against
+#' observations with an objective function such as [NSE()]. Built to be the
+#' function an optimizer like [stats::optim()] calls; see the example.
 #'
-#' @return Optimized parameters and objective function value.
+#' Steps: runs `calibration_function` with `calibration_function_args`,
+#' takes the `result_col` column of its output, drops days with no
+#' observation, optionally averages to months or years, and calls
+#' `obj_fun(sim = ..., obs = ...)`. If the output length doesn't match the
+#' observations, or has non-finite values, it returns a penalty instead
+#' (`-9999` when `obj_fun` is [NSE()], otherwise `1e10`).
+#'
+#' @param params Numeric vector. The parameters being fitted. Not used by
+#'   the function: build `calibration_function_args` from them in a wrapper
+#'   (see the example). Required.
+#' @param calibration_function Function. The model to run, e.g.
+#'   [runoff_routing_gw()]. Required.
+#' @param calibration_function_args List. The arguments for
+#'   `calibration_function`, passed with [do.call()]. Required.
+#' @param result_col String or `NULL`. The output column to score.
+#'   * A string, e.g. `"Q_tot"`: that column.
+#'   * `NULL`: the last column.
+#'
+#'   Default: `NULL`.
+#' @param obs_vals Numeric vector. The observations, the same length as the
+#'   model output (use `NA` for days without one). Required.
+#' @param date Date vector or `NULL`. The dates of the observations, the
+#'   same length as `obs_vals`; needed for `time_ag`. Stops with an error if
+#'   the lengths differ. Default: `NULL`.
+#' @param obj_fun Function. The objective function, called as
+#'   `obj_fun(sim = , obs = )`: one of [NSE()], [RSR()], [PBIAS()], [COD()],
+#'   [SSE()], [RMSE()] or [MAE()]. Required.
+#' @param return_dat Logical. What to return.
+#'   * `TRUE`: a data frame of the dates, observations and full model output.
+#'   * `FALSE`: the score.
+#'
+#'   Default: `FALSE`.
+#' @param silence Logical. Whether to stay quiet.
+#'   * `TRUE`: prints nothing.
+#'   * `FALSE`: prints "Current Fit: ..." each call (and a message when it
+#'     returns a penalty).
+#'
+#'   Default: `FALSE`.
+#' @param time_ag String or `NULL`. The time step to score at.
+#'   * `"Monthly"` or `"Annual"`: averages observations and model output by
+#'     month or year first (needs `date`).
+#'   * `"Daily"` or `NULL`: scores each day.
+#'
+#'   Default: `NULL`.
+#'
+#' @return The score (a number), or a data frame when `return_dat = TRUE`.
 #' @export
+#' @seealso The objective functions, e.g. [NSE()]; [runoff_routing_gw()]
+#'   and [runoff_routing_snow_fun()].
+#' @examples
+#' set.seed(1)
+#' runoff <- data.frame(date = seq(as.Date("2021-01-01"), by = "day", length.out = 120),
+#'                      runoff_in_wbm = pmax(0, rnorm(120, 0.2, 0.4)))
+#' # "Observed" flow: the routed runoff with known parameters, plus noise
+#' obs <- runoff_routing_gw(runoff, tau_q = 3, tau_s = 25, vs = 0.5)$Q_tot *
+#'   runif(120, 0.9, 1.1)
+#'
+#' # Score one set of parameters
+#' test_model_fit(params = NULL,
+#'                calibration_function = runoff_routing_gw,
+#'                calibration_function_args = list(df = runoff, tau_q = 2,
+#'                                                 tau_s = 20, vs = 0.4),
+#'                result_col = "Q_tot", obs_vals = obs, obj_fun = NSE)
+#'
+#' # Fit tau_q, tau_s and vs with optim(), minimizing 1 - NSE
+#' fit_fn <- function(p) {
+#'   1 - test_model_fit(params = p,
+#'                      calibration_function = runoff_routing_gw,
+#'                      calibration_function_args = list(df = runoff, tau_q = p[1],
+#'                                                       tau_s = p[2], vs = p[3]),
+#'                      result_col = "Q_tot", obs_vals = obs, obj_fun = NSE,
+#'                      silence = TRUE)
+#' }
+#' fit <- optim(c(2, 20, 0.4), fit_fn, method = "L-BFGS-B",
+#'              lower = c(0.1, 1, 0), upper = c(20, 200, 1))
+#' round(fit$par, 2)
+
 test_model_fit <- function(params, 
                            calibration_function = NULL,
                            calibration_function_args = NULL,

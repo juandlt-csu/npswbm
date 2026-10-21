@@ -1,23 +1,61 @@
-#' Import or download daily WBM rasters for an AOI and summarize to mean daily 
-#' values in a dataframe.
-#' 
-#' This function uses the get_wbm_grids() function to download or import 
-#' gridded WBM rasters for an AOI. Each daily raster is then summarized using
-#' the daily mean, to return a timeseries of daily mean WBM variables for the
-#' AOI. 
-#' 
-#' @param park The 4 digit national park code(s) for parks of interest
-#' @param aoi An sf object to use as the crop extent
-#' @param aoi_name A character string used to name the file, often a description of the AOI pulled
-#' @param gcm A character vector containing selected GCMs for which to download future WBM
-#' @param download A TRUE/FALSE
-#' @param aoi_average TRUE/FALSE whether to return a single daily average value for the entire aoi
-#' @param path home path in which to create subfolder
-#' 
-#' @return A data.frame containing daily timeseries of the spatial mean for 
-#'          each water balance variable formatted like the 
-#'          get_centroid_wbm_data output.
+#' @title Daily WBM values for an area from saved rasters
+#'
+#' @description
+#' Reads the daily WBM rasters saved by [get_wbm_grids()] for an area
+#' (the files in `<path><park>/wbm_daily_rasters/` whose names contain
+#' `aoi_name`) and returns them as a long table, converted from the files'
+#' units (tenths of mm) to inches. Historical layers get `gcm =
+#' "gridmet.historical"`. Files are read with [furrr::future_map_dfr()].
+#'
+#' @param park String. The four-letter park code (the subfolder name).
+#'   Required.
+#' @param aoi sf object. The area of interest; only used when
+#'   `download = TRUE`. Required.
+#' @param aoi_name String. The area name used in the file names by
+#'   [get_wbm_grids()]. Required.
+#' @param gcm Character vector. The future climate models to download when
+#'   `download = TRUE`. Default: `select_cfs$GCM`, which needs an object
+#'   called `select_cfs` in the global environment.
+#' @param download Logical. Whether to download the rasters first.
+#'   * `TRUE`: meant to run [get_wbm_grids()] for soil_water, runoff, rain,
+#'     accumswe, PET, Deficit and AET first (minutes to hours), but it
+#'     currently stops with an error (`object 'gcms' not found`); run
+#'     [get_wbm_grids()] yourself instead.
+#'   * `FALSE`: reads the files already saved. Stops with an error if there
+#'     are none.
+#'
+#'   Default: `FALSE`.
+#' @param aoi_average Logical. Whether to average over the area.
+#'   * `TRUE`: one row per date and model, with one column per variable
+#'     (the mean over all cells).
+#'   * `FALSE`: one row per cell, date, model and variable, keeping `x` and
+#'     `y`.
+#'
+#'   Default: `FALSE`.
+#' @param path String. The folder that holds the park subfolders. It must
+#'   end with `/`, because the park code is pasted straight on. Default:
+#'   `park/` in the shared data folder, see [wavacore::wava_data_path()].
+#'
+#' @return A data frame. With `aoi_average = FALSE`: `x`, `y`, `gcm`,
+#'   `wbm_var` (`runoff_in`, `rain_in`, `aet_in`, `pet_in`, `accumswe_in`,
+#'   `soil_water_in`, `deficit_in`), `date` and `val` (inches). With
+#'   `aoi_average = TRUE`: `date`, `gcm` and one column per variable.
 #' @export
+#' @seealso [get_wbm_grids()], which saves the rasters.
+#' @examplesIf interactive()
+#' # Downloads one variable for two years into a temporary folder, then
+#' # reads it back; needs internet
+#' aoi <- sf::st_as_sf(sf::st_as_sfc(sf::st_bbox(
+#'   c(xmin = -113.1, ymin = 37.1, xmax = -112.8, ymax = 37.4), crs = 4326
+#' )))
+#' out <- paste0(tempdir(), "/")
+#' get_wbm_grids("ZION", aoi, aoi_name = "example", future_years = 2040,
+#'               historic_years = 2000, macas = "CCSM4.rcp45",
+#'               wb_var = "runoff", path = out)
+#' runoff <- get_wbm_aoi("ZION", aoi, aoi_name = "example", gcm = "CCSM4.rcp45",
+#'                       aoi_average = TRUE, path = out)
+#' head(runoff)
+
 get_wbm_aoi <- function(park,
                         aoi,
                         aoi_name,

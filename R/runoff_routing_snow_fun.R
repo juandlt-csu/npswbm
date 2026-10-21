@@ -1,34 +1,71 @@
-#' This routing function is a modified IHACRES type that considers rainfall
-#' and snowmelt with separate lumped runoff terms.  This function takes a 
-#' dataframe containing date, rain, snowmelt, and total runoff (melt) and 
-#' applies a recursive filter to partition rain into slowflow (Xsr) and 
-#' quickflow (Xqs) and snowmelt into a second slowflow (Xqm). Because WBM melt
-#' and rain totals don't incorporate losses from AET, they are instead used
-#' to determine the fraction of total available water that is contributed from
-#' melt and rain. Then, those fractions are multipled by the total runoff
-#' to get an effective rain and melt contribution for each timestep.
-#' 
-#' This function was originally modified from the expuh function in the 
-#' Hydromad R package. 
-#' 
-#' Andrews F, Guillaume J, Vervoort W, Buzacott A (2021). hydromad: Hydrological 
-#' Model Assessment and Development. http://hydromad.catchment.org/, 
-#' https://github.com/josephguillaume/hydromad.
-#'       
-#' @param df dataframe containing columns with date, runoff, rain, & melt
-#' @param tau_q_rain Recession coefficient for rain quickflow  
-#' @param tau_s_rain Recession coefficient for rain slowflow 
-#' @param tau_s_melt Recession coefficient for snowmelt slowflow
-#' @param vs_rain Fraction of rainfall that goes to slowflow (-)
-#' @param return_components TRUE if return quick and slowflow separately
-#' @param runoff_col column containing runoff timeseries
-#' @param rain_col column containing rain timeseries
-#' @param melt_col column containing melt timeseries
-#' @param date_col column containing dates
-#' Note, all parameters with time have same time unit as df$date. So, if daily,
-#' then days.
-#' 
+#' @title Route runoff with separate rain and snowmelt components
+#'
+#' @description
+#' Routes a daily runoff series into streamflow with separate rain and
+#' snowmelt paths, an IHACRES-style filter based on `expuh` in the hydromad
+#' package (Andrews et al. 2021). Because the model's rain and melt totals
+#' don't include AET losses, they are only used to split the runoff: each
+#' day's runoff is divided between melt and rain by `melt / (rain + melt)`.
+#' Then:
+#' * rain runoff is split into slowflow (`vs_rain`, time constant
+#'   `tau_s_rain`) and quickflow (time constant `tau_q_rain`);
+#' * melt runoff is one slowflow (time constant `tau_s_melt`).
+#'
+#' The melt slowflow currently uses the rain slowflow constant
+#' (`tau_s_rain`) for its share of the inflow, and `tau_s_melt` only for its
+#' recession.
+#'
+#' Up to 5 missing days are filled with the nearest value and dropped again
+#' from the result; with more than 5 missing days it returns a message
+#' (a string) instead.
+#'
+#' @param df Data frame. The daily series, with a `date` column (always
+#'   read as `df$date`, whatever `date_col` says) and runoff, rain and melt
+#'   columns. Required.
+#' @param tau_q_rain Numeric of 0 or more. The rain quickflow time constant,
+#'   in days. Required.
+#' @param tau_s_rain Numeric of 0 or more. The rain slowflow time constant,
+#'   in days. Required.
+#' @param vs_rain Numeric from 0 to 1. The fraction of rain runoff that goes
+#'   to slowflow. Required.
+#' @param tau_s_melt Numeric of 0 or more. The snowmelt slowflow time
+#'   constant, in days. Required.
+#' @param delay Numeric. The number of days (rounded) by which all components
+#'   are shifted later, filling the start with 0; `0` for none. Required.
+#' @param return_components Logical. Whether to return the components.
+#'   * `TRUE`: adds `Q_slow_rain`, `Q_quick_rain` and `Q_slow_melt`.
+#'   * `FALSE`: returns only `Q_tot`.
+#'
+#'   Default: `FALSE`.
+#' @param runoff_col String. The name of the runoff column. Default:
+#'   `"runoff_in_wbm"`.
+#' @param rain_col String. The name of the rain column. Default:
+#'   `"rain_in_wbm"`.
+#' @param melt_col String. The name of the melt column. Default:
+#'   `"melt_in_wbm"`.
+#' @param date_col String. The name of the date column. Not used yet; the
+#'   column must be called `date`. Default: `"date"`.
+#'
+#' @return A data frame with `date`, `melt_runoff`, `rain_runoff` and
+#'   `Q_tot` (in runoff units), plus `Q_slow_rain`, `Q_quick_rain` and
+#'   `Q_slow_melt` when `return_components = TRUE`. Or the string "More than
+#'   5 days of missing data. Fill gaps before routing..." when too many days
+#'   are missing.
+#' @references
+#' Andrews, F., Guillaume, J., Vervoort, W., and Buzacott, A. (2021).
+#'   hydromad: Hydrological Model Assessment and Development.
+#'   <https://github.com/josephguillaume/hydromad>
 #' @export
+#' @seealso [runoff_routing_gw()] for one runoff path with groundwater loss;
+#'   [test_model_fit()].
+#' @examples
+#' wb <- data.frame(date = seq(as.Date("2021-04-01"), by = "day", length.out = 8),
+#'                  runoff_in_wbm = c(0, 0.5, 1.0, 0.8, 0.3, 0, 0, 0.2),
+#'                  rain_in_wbm = c(0, 0.2, 0, 0, 0, 0, 0, 0.4),
+#'                  melt_in_wbm = c(0, 0.4, 1.1, 0.9, 0.4, 0.1, 0, 0))
+#' runoff_routing_snow_fun(wb, tau_q_rain = 2, tau_s_rain = 15, vs_rain = 0.3,
+#'                         tau_s_melt = 30, delay = 0, return_components = TRUE)
+
 runoff_routing_snow_fun <- function(df, 
                                tau_q_rain, 
                                tau_s_rain, 

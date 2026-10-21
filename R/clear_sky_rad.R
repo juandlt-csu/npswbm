@@ -1,13 +1,10 @@
-#' ## This version of the NPS water balance model functions are based on:
-#' ## Dave Thoma's water balance Excel spreadsheet model and were originally
-#' ## created 10/30/2019 by ARC with subsequent updates 4/14/21 by MGS 
-#' 
-#' Clear Sky Radiation
-#'
-#' Calculates incoming clear-sky radiation (MJ m^-2 day^-1) based on day-of-year, latitude, and elevation
-#' @param doy Day-of-year (Julian date)
-#' @param lat Latitude (degrees)
-#' @param elev Elevation (m)
+#' Clear-sky solar radiation (MJ m-2 day-1) from day of year, latitude and
+#' elevation. Internal helper of [ET_PenmanMonteith_daily()].
+#' @param doy Numeric vector. Day of year.
+#' @param lat Numeric. Latitude, degrees.
+#' @param elev Numeric. Elevation, meters.
+#' @return Numeric vector. Clear-sky radiation, MJ m-2 day-1.
+#' @noRd
 
 clear_sky_rad = function(doy, lat, elev){
   d.r = 1 + 0.033*cos(((2*pi)/365)*doy)

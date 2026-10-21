@@ -2,20 +2,33 @@
 % Please edit documentation in R/get_snow.R
 \name{get_snow}
 \alias{get_snow}
-\title{## This version of the NPS water balance model functions are based on:
-## Dave Thoma's water balance Excel spreadsheet model and were originally
-## created 10/30/2019 by ARC with subsequent updates 4/14/21 by MGS}
+\title{Snowfall from precipitation and the freeze factor}
 \usage{
 get_snow(ppt, freeze)
 }
 \arguments{
-\item{ppt}{A vector of precipitation values.}
+\item{ppt}{Numeric vector. Daily precipitation, in mm. Required.}
 
-\item{freeze}{A vector of freeze factor values, calculated from average temperature and Jennings et al., 2018. Values are 0-1.}
+\item{freeze}{Numeric vector. The freeze factor (0-1) from
+\code{\link[=get_freeze]{get_freeze()}}: the fraction that falls as rain. Required.}
+}
+\value{
+A numeric vector of daily snowfall (water equivalent), in the
+units of \code{ppt}.
 }
 \description{
-Snow
+Snow is the part of precipitation that isn't rain:
+\code{(1 - freeze) * ppt}.
+
+These model functions are based on Dave Thoma's water balance spreadsheet
+model; they were first written on 2019-10-30 by ARC and updated on
+2021-04-14 by MGS.
 }
-\details{
-Calculates snowfall totals based on precipitation and freeze factor.
+\examples{
+freeze <- get_freeze(jtemp = 1.5, tmean = c(-5, 1.5, 8))
+get_snow(ppt = c(10, 10, 10), freeze = freeze)
+}
+\seealso{
+\code{\link[=get_rain]{get_rain()}} for the rain part; \code{\link[=get_melt]{get_melt()}} and
+\code{\link[=get_snowpack]{get_snowpack()}} for what happens to the snow.
 }

@@ -2,25 +2,48 @@
 % Please edit documentation in R/Objective_Functions.R
 \name{NSE}
 \alias{NSE}
-\title{Nash-Sutcliffe Efficiency (NSE)}
+\title{Nash-Sutcliffe efficiency (NSE)}
 \usage{
 NSE(obs, sim)
 }
 \arguments{
-\item{obs}{Vector of observed values}
+\item{obs}{Numeric vector. Observed values, e.g. daily streamflow at a
+gage. Pairs where \code{obs} or \code{sim} is \code{NA} are dropped first. Required.}
 
-\item{sim}{Vector of simulated/modeled values}
+\item{sim}{Numeric vector. Simulated values, the same length as \code{obs}.
+Required.}
 }
 \value{
-A single numeric value representing the NSE
-
-NSE Interpretation
-1.0Perfect match between model and observations.
-> 0.75Excellent fit; highly reliable for decision making.
-0.5 to 0.75Satisfactory to Good fit.
-0.0 to 0.5Marginal fit; the model captures some trends but has high error.
-< 0.0Poor fit; you would be better off just using the average flow.
+A number from minus infinity to 1. Returns \code{-9999} (a penalty
+for optimizers) when no pairs are left or the observations are all the
+same.
 }
 \description{
-Nash-Sutcliffe Efficiency (NSE)
+Calculates the Nash-Sutcliffe efficiency of simulated against observed
+values: \code{1 - sum((obs - sim)^2) / sum((obs - mean(obs))^2)}. 1 is a
+perfect match; above 0.75 is an excellent fit; 0.5 to 0.75 satisfactory to
+good; 0 to 0.5 marginal; below 0 the mean of the observations would do
+better (Moriasi et al. 2007).
+
+The metrics are summarized at
+\url{https://www.hec.usace.army.mil/confluence/hmsdocs/hmstrm/calibration/calibration-summary-statistics}.
+}
+\examples{
+obs <- c(2.1, 3.4, 8.0, 5.2, 3.3, NA, 2.4)
+sim <- c(2.4, 3.1, 7.2, 5.9, 3.0, 2.8, 2.2)
+NSE(obs, sim)
+}
+\references{
+Moriasi, D.N. et al. (2007). Model evaluation guidelines for systematic
+quantification of accuracy in watershed simulations. Transactions of the
+ASABE, 50(3), 885-900.
+
+Legates, D.R., and McCabe, G.J. (1999). Evaluating the use of
+"goodness-of-fit" measures in hydrologic and hydroclimatic model
+validation. Water Resources Research, 35(1), 233-241.
+}
+\seealso{
+The other fit metrics: \code{\link[=NSE]{NSE()}}, \code{\link[=RSR]{RSR()}}, \code{\link[=PBIAS]{PBIAS()}}, \code{\link[=COD]{COD()}},
+\code{\link[=SSE]{SSE()}}, \code{\link[=RMSE]{RMSE()}}, \code{\link[=MAE]{MAE()}}; \code{\link[=test_model_fit]{test_model_fit()}}, which uses them to score
+a routing run.
 }

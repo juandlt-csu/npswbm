@@ -1,20 +1,52 @@
-#' Import daily WBM rasters
-#' 
-#' This function pulls data directly from the FUTURE and Historical THREDDS servers for a specified variable, years, and climate models at a daily timestep
-#' and crops the imported rasters to an area of interest.
-#' 
-#' 
-#' @param park The 4 digit national park code(s) for parks of interest
-#' @param aoi An sf object to use as the crop extent
-#' @param aoi_name A character string used to name the file, often a description of the AOI pulled
-#' @param future_years A numeric vector of all future years to pull daily data for
-#' @param historic_years A numeric vector of all historic years to pull daily data for
-#' @param macas The name of the GCMs to pull future data from (ideally pulled from `select_cfs_rapid()`)
-#' @param wb_var The water balance variable to pull data for: ONE of runoff, soil_water, rain, accumswe, PET, deficit, AET
-#' @param path The file path to save the .tif of all stacked rasters. Automatically creates a subfolder called 'wbm_daily_rasters'
-#' 
-#' @return A SpatRaster with a layer for each daily value of specified wbm variable
+#' @title Download daily future and historical WBM rasters for an area
+#'
+#' @description
+#' Reads the daily rasters of the gridded NPS water balance model from the
+#' WBM THREDDS server (`http://www.yellowstone.solutions/thredds/`) for one
+#' variable: the future runs for each model in `macas` and year in
+#' `future_years`, and the GridMET historical run for each year in
+#' `historic_years`. Each set is stacked, given the server's CRS (Lambert
+#' conformal conic) and extent, cropped to `aoi`, and written to a GeoTIFF.
+#' It needs internet; downloads run with [furrr::future_map()], so they are
+#' parallel if a [future::plan()] is set.
+#'
+#' @param park String. The four-letter park code; names the subfolder and
+#'   the files. Required.
+#' @param aoi sf object. The area of interest to crop to. Required.
+#' @param aoi_name String. A short name for the area, used in the file names
+#'   so [get_wbm_aoi()] can find them. Default: `"AOI"`.
+#' @param future_years Numeric vector. The future years to download.
+#'   Default: `2024:2070`.
+#' @param historic_years Numeric vector. The historical years to download.
+#'   Default: `1980:2023`.
+#' @param macas Character vector. The future climate models, as
+#'   `"<model>.<scenario>"`, e.g. `"CCSM4.rcp45"`. Required.
+#' @param wb_var String. One water balance variable: `"runoff"`,
+#'   `"soil_water"`, `"rain"`, `"accumswe"`, `"PET"`, `"Deficit"` or
+#'   `"AET"`. Required.
+#' @param path String. The folder the park subfolder is made in. The files
+#'   go to `<path>/<park>/wbm_daily_rasters/`, named
+#'   `<park>_<aoi_name>_<wb_var>_selected_cfs_<years>.tif` and
+#'   `..._historic_gridmet_<years>.tif`, replacing existing files; the
+#'   folders are created if needed. Default: `park/` in the shared data
+#'   folder, see [wavacore::wava_data_path()].
+#'
+#' @return A list of two SpatRasters, `future` and `historic`, with one layer
+#'   per day, named `<model>_<wb_var>_<date>` and `<wb_var>_<date>`.
 #' @export
+#' @seealso [get_wbm_aoi()], which reads the files back as a table;
+#'   [get_future_wbm()] for future rasters only.
+#' @examplesIf interactive()
+#' # Reads from the WBM THREDDS server, so it needs internet
+#' aoi <- sf::st_as_sf(sf::st_as_sfc(sf::st_bbox(
+#'   c(xmin = -113.1, ymin = 37.1, xmax = -112.8, ymax = 37.4), crs = 4326
+#' )))
+#' grids <- get_wbm_grids("ZION", aoi, aoi_name = "example",
+#'                        future_years = 2040, historic_years = 2000,
+#'                        macas = "CCSM4.rcp45", wb_var = "runoff",
+#'                        path = tempdir())
+#' grids$historic
+
 get_wbm_grids <- function(park, 
                           aoi,
                           aoi_name = "AOI",

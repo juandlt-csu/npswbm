@@ -2,7 +2,7 @@
 % Please edit documentation in R/get_wbm_grids.R
 \name{get_wbm_grids}
 \alias{get_wbm_grids}
-\title{Import daily WBM rasters}
+\title{Download daily future and historical WBM rasters for an area}
 \usage{
 get_wbm_grids(
   park,
@@ -16,26 +16,62 @@ get_wbm_grids(
 )
 }
 \arguments{
-\item{park}{The 4 digit national park code(s) for parks of interest}
+\item{park}{String. The four-letter park code; names the subfolder and
+the files. Required.}
 
-\item{aoi}{An sf object to use as the crop extent}
+\item{aoi}{sf object. The area of interest to crop to. Required.}
 
-\item{aoi_name}{A character string used to name the file, often a description of the AOI pulled}
+\item{aoi_name}{String. A short name for the area, used in the file names
+so \code{\link[=get_wbm_aoi]{get_wbm_aoi()}} can find them. Default: \code{"AOI"}.}
 
-\item{future_years}{A numeric vector of all future years to pull daily data for}
+\item{future_years}{Numeric vector. The future years to download.
+Default: \code{2024:2070}.}
 
-\item{historic_years}{A numeric vector of all historic years to pull daily data for}
+\item{historic_years}{Numeric vector. The historical years to download.
+Default: \code{1980:2023}.}
 
-\item{macas}{The name of the GCMs to pull future data from (ideally pulled from `select_cfs_rapid()`)}
+\item{macas}{Character vector. The future climate models, as
+\code{"<model>.<scenario>"}, e.g. \code{"CCSM4.rcp45"}. Required.}
 
-\item{wb_var}{The water balance variable to pull data for: ONE of runoff, soil_water, rain, accumswe, PET, deficit, AET}
+\item{wb_var}{String. One water balance variable: \code{"runoff"},
+\code{"soil_water"}, \code{"rain"}, \code{"accumswe"}, \code{"PET"}, \code{"Deficit"} or
+\code{"AET"}. Required.}
 
-\item{path}{The file path to save the .tif of all stacked rasters. Automatically creates a subfolder called 'wbm_daily_rasters'}
+\item{path}{String. The folder the park subfolder is made in. The files
+go to \verb{<path>/<park>/wbm_daily_rasters/}, named
+\verb{<park>_<aoi_name>_<wb_var>_selected_cfs_<years>.tif} and
+\verb{..._historic_gridmet_<years>.tif}, replacing existing files; the
+folders are created if needed. Default: \verb{park/} in the shared data
+folder, see \code{\link[wavacore:wava_data_path]{wavacore::wava_data_path()}}.}
 }
 \value{
-A SpatRaster with a layer for each daily value of specified wbm variable
+A list of two SpatRasters, \code{future} and \code{historic}, with one layer
+per day, named \verb{<model>_<wb_var>_<date>} and \verb{<wb_var>_<date>}.
 }
 \description{
-This function pulls data directly from the FUTURE and Historical THREDDS servers for a specified variable, years, and climate models at a daily timestep
-and crops the imported rasters to an area of interest.
+Reads the daily rasters of the gridded NPS water balance model from the
+WBM THREDDS server (\verb{http://www.yellowstone.solutions/thredds/}) for one
+variable: the future runs for each model in \code{macas} and year in
+\code{future_years}, and the GridMET historical run for each year in
+\code{historic_years}. Each set is stacked, given the server's CRS (Lambert
+conformal conic) and extent, cropped to \code{aoi}, and written to a GeoTIFF.
+It needs internet; downloads run with \code{\link[furrr:future_map]{furrr::future_map()}}, so they are
+parallel if a \code{\link[future:plan]{future::plan()}} is set.
+}
+\examples{
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
+# Reads from the WBM THREDDS server, so it needs internet
+aoi <- sf::st_as_sf(sf::st_as_sfc(sf::st_bbox(
+  c(xmin = -113.1, ymin = 37.1, xmax = -112.8, ymax = 37.4), crs = 4326
+)))
+grids <- get_wbm_grids("ZION", aoi, aoi_name = "example",
+                       future_years = 2040, historic_years = 2000,
+                       macas = "CCSM4.rcp45", wb_var = "runoff",
+                       path = tempdir())
+grids$historic
+\dontshow{\}) # examplesIf}
+}
+\seealso{
+\code{\link[=get_wbm_aoi]{get_wbm_aoi()}}, which reads the files back as a table;
+\code{\link[=get_future_wbm]{get_future_wbm()}} for future rasters only.
 }
