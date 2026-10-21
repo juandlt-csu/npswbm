@@ -25,15 +25,15 @@ get_wbm_grids <- function(park,
                           path = wavacore::wava_data_path("park/")) {
 
     # check that path to save files to exists
-  if (!dir.exists(paste0(getwd(), "/", path, "/", park))) {
+  if (!dir.exists(paste0(path, "/", park))) {
     dir.create(file.path(paste0(
-      getwd(), "/", path, "/", park
-    )), showWarnings = FALSE)
+      path, "/", park
+    )), recursive = TRUE, showWarnings = FALSE)
   }
-  if (!dir.exists(paste0(getwd(), "/", path, "/", park, "/wbm_daily_rasters/"))) {
+  if (!dir.exists(paste0(path, "/", park, "/wbm_daily_rasters/"))) {
     dir.create(file.path(paste0(
-      getwd(), "/", path, "/", park, "/wbm_daily_rasters/"
-    )), showWarnings = FALSE)
+      path, "/", park, "/wbm_daily_rasters/"
+    )), recursive = TRUE, showWarnings = FALSE)
   }
   
   # create df of all variable, year, scenario combinations
@@ -87,8 +87,6 @@ get_wbm_grids <- function(park,
   terra::writeRaster(
     final_future_stack,
     filename = paste0(
-      getwd(),
-      "/",
       path,
       "/",
       park,
@@ -149,8 +147,6 @@ get_wbm_grids <- function(park,
   terra::writeRaster(
     final_historic_stack,
     filename = paste0(
-      getwd(),
-      "/",
       path,
       "/",
       park,

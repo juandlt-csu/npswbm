@@ -16,10 +16,10 @@
 #' @export
 get_future_wbm <- function(park, aoi, years = 2023:2070, macas, wb_var, path = wavacore::wava_data_path("park/")) {
   # check that path to save files to exists
-  if (!dir.exists(paste0(getwd(), "/", path, "/", park, "/wbm_daily_rasters/"))) {
+  if (!dir.exists(paste0(path, "/", park, "/wbm_daily_rasters/"))) {
     dir.create(file.path(paste0(
-      getwd(), "/", path, "/", park, "/wbm_daily_rasters/"
-    )), showWarnings = FALSE)
+      path, "/", park, "/wbm_daily_rasters/"
+    )), recursive = TRUE, showWarnings = FALSE)
   }
   
   # create df of all variable, year, scenario combinations
@@ -73,8 +73,6 @@ get_future_wbm <- function(park, aoi, years = 2023:2070, macas, wb_var, path = w
   terra::writeRaster(
     final_stack,
     filename = paste0(
-      getwd(),
-      "/",
       path,
       "/",
       park,

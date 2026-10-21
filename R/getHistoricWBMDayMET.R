@@ -8,8 +8,8 @@ getHistoricWBMDayMET <- function(park, aoi, path = wavacore::wava_data_path("par
   
   options(timeout = 900)
 
-  if(!dir.exists(paste0(getwd(),"/templeod_dataall/"))){dir.create(file.path(getwd(),"/templeod_dataall/"), showWarnings = FALSE)}
-  if(!dir.exists(paste0(getwd(),"/", path, "/", park, "/wbm_daymet_hist/"))){dir.create(file.path(paste0(getwd(),"/", path, "/", park, "/wbm_daymet_hist/")), showWarnings = FALSE)}
+  if(!dir.exists(paste0(getwd(),"/templeod_dataall/"))){dir.create(file.path(getwd(),"/templeod_dataall/"), recursive = TRUE, showWarnings = FALSE)}
+  if(!dir.exists(paste0(path, "/", park, "/wbm_daymet_hist/"))){dir.create(file.path(paste0(path, "/", park, "/wbm_daymet_hist/")), recursive = TRUE, showWarnings = FALSE)}
   
   years <- 1980:2022
   
@@ -48,7 +48,7 @@ getHistoricWBMDayMET <- function(park, aoi, path = wavacore::wava_data_path("par
     
     #mapview(table) + mapview (aoi)
     
-    readr::write_csv(table, file = paste0(getwd(), "/", path, "/", park, "/wbm_daymet_hist/", park, "_daymet_", map_dat$wb_vars[i], "_", map_dat$years[i], ".csv"))
+    readr::write_csv(table, file = paste0(path, "/", park, "/wbm_daymet_hist/", park, "_daymet_", map_dat$wb_vars[i], "_", map_dat$years[i], ".csv"))
     
 
   }
