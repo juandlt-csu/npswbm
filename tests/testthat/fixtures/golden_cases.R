@@ -18,6 +18,8 @@
 # `downloads`: what an "internet" case fetches, named in its skip reason.
 # `keep`: optional function applied to the result before it is saved or
 #   compared, for results identical() can't compare as they are.
+# `baseline`: "pr165" for code that isn't in the pinned playground commit. These
+#   cases come from make_golden_pr165.R, and make_golden.R leaves them out.
 #
 # Not covered, because they can't run in either version right now (see
 # README.md): get_future_wbm, get_wbm_grids, get_historic_wbm_daymet, and
@@ -97,6 +99,15 @@ golden_points_climate <- function(warmer = 0, GCM = "gcm_a") {
         golden_climate(-112.95, 37.25, GCM, warmer + 1))
 }
 
+# The two points' climate with the small coordinate differences that separate
+# downloads can have. b62f366 finds no rows for these; PR #165 rounds them.
+golden_noisy_climate <- function() {
+  clim <- golden_points_climate()
+  clim$x <- clim$x + 1e-9
+  clim$y <- clim$y - 1e-9
+  clim
+}
+
 golden_box <- function(xmin, ymin, xmax, ymax) {
   sf::st_sf(geometry = sf::st_as_sfc(sf::st_bbox(
     c(xmin = xmin, ymin = ymin, xmax = xmax, ymax = ymax),
@@ -125,7 +136,7 @@ golden_steps <- function(fn) {
   w <- melt + rain
   pet <- 1 + 3 * (clim$tmean_C + 8) / 28
   list(tmean = clim$tmean_C, ppt = clim$ppt_mm, jtemp = jtemp, freeze = freeze,
-       snow = snow, melt = melt, w = w, pet = pet, date = clim$date,
+       rain = rain, snow = snow, melt = melt, w = w, pet = pet, date = clim$date,
        swc = fn("get_soil")(w, 50, pet, w - pet, 100))
 }
 
@@ -517,6 +528,74 @@ golden_cases <- local({
            args = list(park = "BRCA", aoi = NULL, aoi_name = brca_prefix,
                        gcm = NULL, aoi_average = TRUE),
            needs = "data", reads = c(brca_historic, brca_future))
+    ),
+
+    # Playground PR #165 (issue #2): rain-on-snow melt and rounded coordinates
+    # aren't in the pinned commit, so these cases have their own baseline, the
+    # head of that PR. The cases above show the defaults didn't change.
+    list(
+      list(id = "get_melt_ros", fun = "get_melt_ros", baseline = "pr165",
+           args = function(fn) {
+             s <- golden_steps(fn)
+             list(tmean = s$tmean, jtemp = rep(s$jtemp, length(s$tmean)),
+                  hock = 4, snow = s$snow, rain = s$rain)
+           }),
+      list(id = "get_melt_ros_initial_pack", fun = "get_melt_ros",
+           baseline = "pr165",
+           args = function(fn) {
+             s <- golden_steps(fn)
+             list(tmean = s$tmean, jtemp = rep(s$jtemp, length(s$tmean)),
+                  hock = 3, snow = s$snow, rain = s$rain, sp.0 = 25)
+           }),
+      list(id = "get_melt_ros_no_rain", fun = "get_melt_ros", baseline = "pr165",
+           args = function(fn) {
+             s <- golden_steps(fn)
+             list(tmean = s$tmean, jtemp = rep(s$jtemp, length(s$tmean)),
+                  hock = 4, snow = s$snow, rain = rep(0, length(s$tmean)))
+           }),
+      list(id = "nps_wbm_ros_false", fun = "nps_wbm", baseline = "pr165",
+           args = list(DailyWB = golden_climate(), point_params = golden_params(),
+                       PET_Method = "Oudin", ROS = FALSE)),
+      list(id = "nps_wbm_ros_oudin", fun = "nps_wbm", baseline = "pr165",
+           args = list(DailyWB = golden_climate(), point_params = golden_params(),
+                       PET_Method = "Oudin", ROS = TRUE)),
+      list(id = "nps_wbm_ros_hamon", fun = "nps_wbm", baseline = "pr165",
+           args = list(DailyWB = golden_climate(), point_params = golden_params(),
+                       PET_Method = "Hamon", ROS = TRUE)),
+      list(id = "nps_wbm_ros_penman_monteith", fun = "nps_wbm",
+           baseline = "pr165",
+           args = list(DailyWB = golden_climate(), point_params = golden_params(),
+                       PET_Method = "Penman-Monteith", ROS = TRUE)),
+      list(id = "nps_wbm_ros_every_option", fun = "nps_wbm", baseline = "pr165",
+           args = list(DailyWB = golden_climate(), point_params = golden_params(),
+                       PET_Method = "Oudin", ROS = TRUE, Direct_Frac = 0.1,
+                       Return_Rate = 0.5, PET_mult = 1.1, Soil_mult = 0.9,
+                       hock_coef = 3, Snowpack.Init = 10, Soil.Init = 20,
+                       Shade.Coeff = 0.8, T.Base = 5)),
+      list(id = "run_nps_wbm_points_coordinate_noise",
+           fun = "run_nps_wbm_points", baseline = "pr165",
+           args = list(
+             points = NULL, climate_data = golden_noisy_climate(),
+             PET_Method = "Oudin", use_final = TRUE,
+             param_list = rbind(
+               cbind(golden_params(-112.98, 37.20),
+                     final_soil = 2, final_snowpack = 1),
+               cbind(golden_params(-112.95, 37.25),
+                     final_soil = 3, final_snowpack = 0)
+             )
+           )),
+      list(id = "run_nps_wbm_points_coordinate_noise_rasters",
+           fun = "run_nps_wbm_points", baseline = "pr165",
+           args = list(points = golden_points(),
+                       climate_data = golden_noisy_climate(),
+                       PET_Method = "Oudin"),
+           needs = "data", reads = rasters),
+      list(id = "run_nps_wbm_points_coordinate_noise_not_aggregated",
+           fun = "run_nps_wbm_points", baseline = "pr165",
+           args = list(points = golden_points(),
+                       climate_data = golden_noisy_climate(),
+                       PET_Method = "Oudin", aggregate = FALSE),
+           needs = "data", reads = rasters)
     )
   )
 })
@@ -572,7 +651,7 @@ golden_checksum <- function(path) {
 # instead of silently dropping a skip.
 local({
   fields <- c("id", "fun", "old_fun", "args", "needs", "reads", "downloads",
-              "keep")
+              "keep", "baseline")
   for (case in golden_cases) {
     id <- if (is.character(case$id) && length(case$id) == 1) case$id else "?"
     bad <- function(...) stop("golden case ", id, ": ", ..., call. = FALSE)
@@ -601,6 +680,9 @@ local({
     }
     if (!is.null(case$keep) && !is.function(case$keep)) {
       bad("`keep` must be a function")
+    }
+    if (!is.null(case$baseline) && !identical(case$baseline, "pr165")) {
+      bad("`baseline` must be \"pr165\" or left out")
     }
   }
   ids <- vapply(golden_cases, function(case) case$id, character(1))

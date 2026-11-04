@@ -6,7 +6,9 @@
 #' 1. Gets the site parameters of each point with [get_nps_wbm_params()]
 #'    (unless `use_final = TRUE`, which uses `param_list`).
 #' 2. For each model and point, picks the point's rows of `climate_data` by
-#'    matching `x` and `y` and runs [nps_wbm()].
+#'    matching `x` and `y`, rounded to 6 decimals, and runs [nps_wbm()]. It
+#'    stops with an error if a point and model have no rows. Melt always comes
+#'    from [get_melt()]: `ROS` in [nps_wbm()] can't be set from here.
 #' 3. Averages the points for each day, variable and model: a plain mean, or
 #'    an area-weighted mean when `area_weighted = TRUE` (skipped when
 #'    `aggregate = FALSE`).
@@ -15,7 +17,7 @@
 #' models x days.
 #'
 #' @param points sf object. The model points with `x` and `y` columns that
-#'   match `climate_data`, e.g. GridMET cell centers. Required.
+#'   match `climate_data` to 6 decimals, e.g. GridMET cell centers. Required.
 #' @param climate_data Data frame. Daily climate for every point and model:
 #'   `x`, `y`, `date`, `GCM`, `ppt_mm` and `tmean_C` (and `tmax_C`/`tmin_C`
 #'   for Penman-Monteith), e.g. from `get_climate_historic()` or
@@ -178,13 +180,32 @@ run_nps_wbm_points <- function(points,
         Snowpack.Init <- points_params[i,]$final_snowpack
       }
       
-      # Subset DailYWB for select GCM and Point
+      # Subset DailyWB for select GCM and Point.
+      # NOTE: match on rounded coordinates (not exact float equality) because
+      # climate_data (e.g. clim_hist/clim_fut) can come from separate API pulls
+      # whose x/y values differ by tiny floating-point noise at the same
+      # nominal GridMET cell -- exact `==` matching can silently return 0 rows
+      # for a valid point/GCM combination (this is what caused the
+      # 'replacement has length zero' error inside get_melt()/get_melt_ros(),
+      # since an empty DailyWB makes length(tmean) == 0 and the internal
+      # `for(i in 2:length(tmean))` loop wraps around to i = 0).
       DailyWB <- climate_data |>
         data.table::data.table() |>
-        dplyr::filter(x == points_params[i,x],
-                      y == points_params[i,y],
-                      GCM == all_gcms[j]) 
-      
+        dplyr::filter(round(x, 6) == round(points_params[i,x], 6),
+                      round(y, 6) == round(points_params[i,y], 6),
+                      GCM == all_gcms[j])
+
+      if (nrow(DailyWB) == 0) {
+        stop(sprintf(
+          paste0("run_nps_wbm_points: no climate_data rows found for point %d ",
+                 "(x = %s, y = %s) and GCM = '%s'. This usually means climate_data ",
+                 "is missing that point/GCM combination (e.g. a partial download), ",
+                 "or the coordinates differ by more than 6 decimal degrees. Compare ",
+                 "distinct x/y for this GCM in climate_data against points_params."),
+          i, points_params[i, x], points_params[i, y], all_gcms[j]
+        ))
+      }
+
       # Run water balance model for each point
       DailyWB_pts[[i]] <- nps_wbm(DailyWB = DailyWB,
                                   point_params = points_params[i,],

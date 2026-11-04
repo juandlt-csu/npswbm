@@ -3,7 +3,7 @@ test_that("the model entry points and pieces are exported", {
   expected <- c("run_nps_wbm_points", "nps_wbm", "get_nps_wbm_params",
                 "load_wbm_rasters", "runoff_routing_gw",
                 "runoff_routing_snow_fun", "test_model_fit", "get_aet",
-                "get_snowpack", "get_storage", "et_hamon_daily",
+                "get_melt_ros", "get_snowpack", "get_storage", "et_hamon_daily",
                 "get_wbm_aoi", "get_wbm_grids")
   expect_true(all(expected %in% exports))
   # helpers only the model itself calls stay internal

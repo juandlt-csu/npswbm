@@ -6,7 +6,7 @@
 #' 1. splits precipitation into rain and snow with the Jennings threshold
 #'    temperature ([get_freeze()], [get_rain()], [get_snow()]);
 #' 2. melts snow with a degree-day factor and updates the snowpack
-#'    ([get_melt()], [get_snowpack()]);
+#'    ([get_melt()], or [get_melt_ros()] with `ROS = TRUE`; [get_snowpack()]);
 #' 3. sends `Direct_Frac` of the rain straight to runoff;
 #' 4. calculates PET with `PET_Method` and multiplies it by `PET_mult`;
 #' 5. updates soil water, with the capacity scaled by `Soil_mult`
@@ -68,6 +68,12 @@
 #'   Default: `0` (empty).
 #' @param Shade.Coeff Numeric from 0 to 1. The shading factor for the Oudin
 #'   method. Default: `1` (no shade).
+#' @param ROS Logical. Whether rain speeds up snowmelt.
+#'   * `TRUE`: melt comes from [get_melt_ros()], which raises the melt factor
+#'     on days when rain falls on melting snow.
+#'   * `FALSE`: melt comes from [get_melt()].
+#'
+#'   Default: `FALSE`.
 #' @param T.Base Numeric. The base temperature for growing degree-days, in
 #'   degrees C. Default: `0`.
 #'
@@ -115,6 +121,7 @@ nps_wbm <- function(DailyWB,
                     Snowpack.Init = 0,   # according to Mike's code
                     Soil.Init = 0, # Soil.Init is full (1) from Mike's code, but empty (0) in Amber's
                     Shade.Coeff = 1,
+                    ROS = FALSE,
                     T.Base = 0) {
   
   DailyWB$doy <- lubridate::yday(DailyWB$date)
@@ -123,7 +130,11 @@ nps_wbm <- function(DailyWB,
   DailyWB$F <- get_freeze(DailyWB$jtemp, DailyWB$tmean_C)
   DailyWB$RAIN <- get_rain(DailyWB$ppt_mm, DailyWB$F)
   DailyWB$SNOW <- get_snow(DailyWB$ppt_mm, DailyWB$F)
-  DailyWB$MELT <- get_melt(DailyWB$tmean_C, DailyWB$jtemp, hock=hock_coef, DailyWB$SNOW, Snowpack.Init)
+  if(ROS == FALSE) {
+    DailyWB$MELT <- get_melt(DailyWB$tmean_C, DailyWB$jtemp, hock=hock_coef, DailyWB$SNOW, Snowpack.Init)
+  } else if (ROS == TRUE) {
+    DailyWB$MELT <- get_melt_ros(DailyWB$tmean_C, DailyWB$jtemp, hock=hock_coef, DailyWB$SNOW, DailyWB$RAIN, Snowpack.Init)
+  }
   DailyWB$PACK <-  get_snowpack(DailyWB$jtemp, DailyWB$SNOW, DailyWB$MELT)
   DailyWB$DIRECT <- DailyWB$RAIN * Direct_Frac # CSU ADD
   #DailyWB$W = DailyWB$MELT + DailyWB$RAIN

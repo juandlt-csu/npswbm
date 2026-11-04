@@ -87,6 +87,9 @@ Sys.setlocale("LC_COLLATE", "C")
 
 source(file.path(fixtures, "golden_cases.R"))
 
+# The code added later has its own baseline: make_golden_pr165.R
+golden_cases <- Filter(function(case) is.null(case$baseline), golden_cases)
+
 # Nothing from an earlier session: the old code looks for these in the global
 # environment, and only loads the rasters if they aren't there
 if (any(golden_raster_names %in% ls(globalenv()))) {

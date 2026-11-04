@@ -1,6 +1,7 @@
 # Compare npswbm with golden outputs saved from the old code in
 # nps_water_vulnerability at the pinned commit b62f366, the playground when
-# npswbm was split out (see fixtures/README.md). A failure means npswbm no
+# npswbm was split out, and for the code ported from playground PR #165, at the
+# head of that PR (see fixtures/README.md). A failure means npswbm no
 # longer returns exactly what the old code did. Report it; don't regenerate the
 # golden file or loosen the comparison to make it pass.
 #
@@ -36,9 +37,11 @@ data_folder_reason <- function(case, missing) {
 # `name`; `text`), or NULL without golden_env.csv. Shown only when a case
 # fails, to point at the cause.
 golden_env_changes <- function() {
-  env_file <- file.path(golden_dir, "golden_env.csv")
-  if (!file.exists(env_file)) return(NULL)
-  env <- utils::read.csv(env_file, stringsAsFactors = FALSE)
+  env_files <- file.path(golden_dir, c("golden_env.csv", "golden_env_pr165.csv"))
+  env_files <- env_files[file.exists(env_files)]
+  if (length(env_files) == 0) return(NULL)
+  env <- unique(do.call(rbind, lapply(env_files, utils::read.csv,
+                                      stringsAsFactors = FALSE)))
   now <- vapply(seq_len(nrow(env)), function(i) {
     switch(env$item[i],
       R = as.character(getRversion()),
@@ -102,7 +105,12 @@ for (case in golden_cases) {
     golden_file <- file.path(golden_dir, paste0(case$id, ".rds"))
     skip_if_not(file.exists(golden_file),
                 paste0(case$id, ": golden file missing: ", golden_file,
-                       "; run tests/testthat/fixtures/make_golden.R"))
+                       "; run tests/testthat/fixtures/",
+                       if (identical(case$baseline, "pr165")) {
+                         "make_golden_pr165.R"
+                       } else {
+                         "make_golden.R"
+                       }))
     if ("data" %in% case$needs) {
       missing <- case$reads[!file.exists(npswavacore::wava_data_path(case$reads))]
       skip_if(length(missing) > 0, data_folder_reason(case, missing))

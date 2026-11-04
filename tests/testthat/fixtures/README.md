@@ -27,6 +27,30 @@ The setup is copied from wavarapid's golden tests, with these differences:
 - `old_fun`, as in npswava, for the functions renamed to snake case;
 - no arrow setting, because npswbm doesn't read parquet files.
 
+## A second baseline: playground PR #165
+
+The rain-on-snow melt and the rounded coordinates from playground PR #165
+(issue #2) aren't in `b62f366`, so their cases are marked `baseline = "pr165"` and
+compared with the code at `7bc0211`, the head of that PR (2026-10-27).
+`make_golden_pr165.R` writes them, and `make_golden.R` leaves them out. Repoint
+`golden_commit` in `make_golden_pr165.R` to the merge commit once the PR is
+merged, if the three files changed.
+
+The cases against `b62f366` stay as they are. They show that a run with the
+default `ROS = FALSE`, and with coordinates that match exactly, still returns what
+the old code did.
+
+```sh
+Rscript tests/testthat/fixtures/make_golden_pr165.R ../nps_water_vulnerability
+```
+
+It adds `golden/<id>.rds`, `golden_info_pr165.txt` and `golden_env_pr165.csv`, and
+changes nothing else in `golden/`. `make_golden.R` empties `golden/` when it
+succeeds, so run this one after it. `setup.R` at that commit also needs
+`ggspatial`, `sfnetworks` and `tidygraph`, which npswbm doesn't use.
+
+The same rule applies: a failure is reported, not fixed by regenerating.
+
 ## Files
 
 - `golden_cases.R`: the inputs, the calls to compare, and the helpers both

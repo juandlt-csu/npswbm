@@ -16,6 +16,7 @@ nps_wbm(
   Snowpack.Init = 0,
   Soil.Init = 0,
   Shade.Coeff = 1,
+  ROS = FALSE,
   T.Base = 0
 )
 }
@@ -78,6 +79,15 @@ Default: \code{0} (empty).}
 \item{Shade.Coeff}{Numeric from 0 to 1. The shading factor for the Oudin
 method. Default: \code{1} (no shade).}
 
+\item{ROS}{Logical. Whether rain speeds up snowmelt.
+\itemize{
+\item \code{TRUE}: melt comes from \code{\link[=get_melt_ros]{get_melt_ros()}}, which raises the melt factor
+on days when rain falls on melting snow.
+\item \code{FALSE}: melt comes from \code{\link[=get_melt]{get_melt()}}.
+}
+
+Default: \code{FALSE}.}
+
 \item{T.Base}{Numeric. The base temperature for growing degree-days, in
 degrees C. Default: \code{0}.}
 }
@@ -96,7 +106,7 @@ site. Each day it:
 \item splits precipitation into rain and snow with the Jennings threshold
 temperature (\code{\link[=get_freeze]{get_freeze()}}, \code{\link[=get_rain]{get_rain()}}, \code{\link[=get_snow]{get_snow()}});
 \item melts snow with a degree-day factor and updates the snowpack
-(\code{\link[=get_melt]{get_melt()}}, \code{\link[=get_snowpack]{get_snowpack()}});
+(\code{\link[=get_melt]{get_melt()}}, or \code{\link[=get_melt_ros]{get_melt_ros()}} with \code{ROS = TRUE}; \code{\link[=get_snowpack]{get_snowpack()}});
 \item sends \code{Direct_Frac} of the rain straight to runoff;
 \item calculates PET with \code{PET_Method} and multiplies it by \code{PET_mult};
 \item updates soil water, with the capacity scaled by \code{Soil_mult}

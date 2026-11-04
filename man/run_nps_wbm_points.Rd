@@ -28,7 +28,7 @@ run_nps_wbm_points(
 }
 \arguments{
 \item{points}{sf object. The model points with \code{x} and \code{y} columns that
-match \code{climate_data}, e.g. GridMET cell centers. Required.}
+match \code{climate_data} to 6 decimals, e.g. GridMET cell centers. Required.}
 
 \item{climate_data}{Data frame. Daily climate for every point and model:
 \code{x}, \code{y}, \code{date}, \code{GCM}, \code{ppt_mm} and \code{tmean_C} (and \code{tmax_C}/\code{tmin_C}
@@ -137,7 +137,9 @@ Runs \code{\link[=nps_wbm]{nps_wbm()}} for every point and every climate model (
 \item Gets the site parameters of each point with \code{\link[=get_nps_wbm_params]{get_nps_wbm_params()}}
 (unless \code{use_final = TRUE}, which uses \code{param_list}).
 \item For each model and point, picks the point's rows of \code{climate_data} by
-matching \code{x} and \code{y} and runs \code{\link[=nps_wbm]{nps_wbm()}}.
+matching \code{x} and \code{y}, rounded to 6 decimals, and runs \code{\link[=nps_wbm]{nps_wbm()}}. It
+stops with an error if a point and model have no rows. Melt always comes
+from \code{\link[=get_melt]{get_melt()}}: \code{ROS} in \code{\link[=nps_wbm]{nps_wbm()}} can't be set from here.
 \item Averages the points for each day, variable and model: a plain mean, or
 an area-weighted mean when \code{area_weighted = TRUE} (skipped when
 \code{aggregate = FALSE}).

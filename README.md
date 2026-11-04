@@ -12,7 +12,7 @@ function has a help page, e.g. `?nps_wbm`.
 | --- | --- |
 | `nps_wbm()`, `run_nps_wbm_points()` | Run the model for one site, or for many points and climate models |
 | `load_wbm_rasters()`, `get_nps_wbm_params()` | Site parameters (elevation, slope, aspect, soil water capacity, rain-snow temperature) |
-| `get_freeze()`, `get_rain()`, `get_snow()`, `get_melt()`, `get_snowpack()`, `get_soil()`, `get_aet()`, `get_storage()`, `get_gdd()`, `get_daylength()` | The model's daily steps |
+| `get_freeze()`, `get_rain()`, `get_snow()`, `get_melt()`, `get_melt_ros()`, `get_snowpack()`, `get_soil()`, `get_aet()`, `get_storage()`, `get_gdd()`, `get_daylength()` | The model's daily steps |
 | `get_oudin_pet()`, `et_hamon_daily()`, `et_penman_monteith_daily()` | Potential evapotranspiration methods |
 | `runoff_routing_gw()`, `runoff_routing_snow_fun()`, `test_model_fit()` | Route model runoff to streamflow and fit it to a gage |
 | `nse()`, `rsr()`, `pbias()`, `cod()`, `sse()`, `rmse()`, `mae()` | Model fit metrics |
